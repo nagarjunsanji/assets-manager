@@ -11,7 +11,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
 import { SelectOption } from '../../models/entity.model';
 import { DOCUMENT_ENTITY_TYPES, DocumentEntityType, VaultDocument } from '../../models/wealth.models';
-import { DocumentStorageService } from '../../services/document-storage.service';
+import { DocumentVaultService } from '../../services/document-vault.service';
 import { PortfolioService } from '../../services/portfolio.service';
 import { DocumentRepositoryService } from '../../services/repositories/repositories';
 import { ToastService } from '../../services/toast.service';
@@ -35,7 +35,7 @@ const TYPE_ICONS: Record<DocumentEntityType, string> = {
   styleUrl: './documents.page.scss',
 })
 export class DocumentsPage {
-  private readonly storage = inject(DocumentStorageService);
+  private readonly vault = inject(DocumentVaultService);
   private readonly portfolio = inject(PortfolioService);
   private readonly dialog = inject(MatDialog);
   private readonly toast = inject(ToastService);
@@ -103,6 +103,38 @@ export class DocumentsPage {
     return d.contentType.startsWith('image/');
   }
 
+  protected openDocument(doc: VaultDocument): void {
+    if (!doc.contentData) {
+      if (doc.url) window.open(doc.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const url = URL.createObjectURL(this.fileBlob(doc));
+    window.open(url, '_blank', 'noopener,noreferrer');
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
+  protected downloadDocument(doc: VaultDocument): void {
+    if (!doc.contentData) {
+      if (doc.url) {
+        const link = document.createElement('a');
+        link.href = doc.url;
+        link.download = doc.name;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.click();
+      }
+      return;
+    }
+
+    const url = URL.createObjectURL(this.fileBlob(doc));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = doc.name;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
   protected size(bytes: number): string {
     return bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
   }
@@ -110,13 +142,13 @@ export class DocumentsPage {
   protected async remove(doc: VaultDocument): Promise<void> {
     const ok = await firstValueFrom(
       this.dialog.open<ConfirmDialog, ConfirmDialogData, boolean>(ConfirmDialog, {
-        data: { title: 'Delete document?', message: `"${doc.name}" will be permanently removed from storage.`, confirmText: 'Delete', danger: true },
+        data: { title: 'Delete document?', message: `"${doc.name}" will be permanently removed from Firestore.`, confirmText: 'Delete', danger: true },
         width: '420px',
       }).afterClosed(),
     );
     if (!ok) return;
     try {
-      await this.storage.remove(doc);
+      await this.vault.remove(doc);
       this.toast.success('Document deleted');
     } catch (err) {
       this.toast.error(err instanceof Error ? err.message : 'Delete failed');
@@ -126,23 +158,32 @@ export class DocumentsPage {
   private async upload(files: File[]): Promise<void> {
     const entityName = this.entityOptions().find((o) => o.value === this.entityId())?.label;
     for (const file of files) {
-      const error = this.storage.validate(file);
+      const error = this.vault.validate(file);
       if (error) {
         this.toast.error(`${file.name}: ${error}`);
         continue;
       }
       this.progress.set(0);
       try {
-        await this.storage.upload(
+        await this.vault.upload(
           { file, entityType: this.entityType(), entityId: this.entityId() || undefined, entityName, tags: this.tags() || undefined },
           (p) => this.progress.set(p),
         );
-        this.toast.success(`${file.name} uploaded`);
+        this.toast.success(`${file.name} saved to Firestore`);
       } catch (err) {
         this.toast.error(err instanceof Error ? err.message : 'Upload failed');
       } finally {
         this.progress.set(null);
       }
     }
+  }
+
+  private fileBlob(doc: VaultDocument): Blob {
+    const encoded = doc.contentData?.split(',')[1];
+    if (!encoded) throw new Error(`The stored file data for "${doc.name}" is invalid.`);
+    const binary = atob(encoded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: doc.contentType });
   }
 }

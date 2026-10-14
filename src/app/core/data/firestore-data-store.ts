@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import {
-  addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, setDoc, writeBatch,
+  addDoc, collection, deleteDoc, doc, getDocFromServer, getDocs, onSnapshot, setDoc, writeBatch,
 } from 'firebase/firestore';
 import { Observable } from 'rxjs';
 import { FirebaseService } from '../firebase/firebase.service';
@@ -11,6 +11,10 @@ const BATCH_LIMIT = 450;
 @Injectable({ providedIn: 'root' })
 export class FirestoreDataStore implements DataStore {
   private readonly fb = inject(FirebaseService);
+
+  async checkConnection(docPath: string): Promise<void> {
+    await getDocFromServer(doc(this.fb.db, docPath));
+  }
 
   watchCollection<T>(collectionPath: string): Observable<T[]> {
     return new Observable<T[]>((subscriber) =>

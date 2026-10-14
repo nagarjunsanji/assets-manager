@@ -1,6 +1,6 @@
 # ASSET-MANAGER
 
-A self-hosted, frontend-only **family office dashboard** for tracking a household's whole asset base: investments, real estate, agriculture, livestock, private lending, insurance, liabilities and goals. It is built on Angular 20 and Firebase (Auth, Firestore, Storage, Hosting). There is no backend server.
+A self-hosted, frontend-only **family office dashboard** for tracking a household's whole asset base: investments, real estate, agriculture, livestock, private lending, insurance, liabilities and goals. It is built on Angular 20 and Firebase (Auth, Firestore and Hosting). There is no backend server.
 
 ---
 
@@ -12,7 +12,7 @@ A self-hosted, frontend-only **family office dashboard** for tracking a househol
 | Charts | ApexCharts + ng-apexcharts |
 | State | Angular Signals + RxJS interop (`toSignal`/`toObservable`) |
 | Data | Cloud Firestore (with offline persistence), per-user subcollections |
-| Files | Firebase Storage |
+| Files | Small PDFs and images stored as Firestore documents |
 | Auth | Firebase Auth (Google, Microsoft, email/password) |
 | Hosting | Firebase Hosting + Angular service worker (PWA) |
 
@@ -22,7 +22,7 @@ A self-hosted, frontend-only **family office dashboard** for tracking a househol
 
 - **Dashboard**: net worth, total assets and liabilities, passive income, monthly cash flow, investment returns, and a 0–100 financial health score.
 - **Modules** (all with CRUD, KPIs and charts): Properties, Agriculture Lands, Farms, Livestock, Private Lending (flat, reducing-balance and bullet interest), Stocks, Mutual Funds (CAGR and XIRR), Fixed Deposits, Other Assets (bonds, savings, gold, silver, crypto, EPF, PPF, NPS, machinery, receivables), Insurance (renewal alerts), Vehicles, Liabilities, Goals.
-- **Document Vault**: upload PDFs and images to Firebase Storage and link them to properties, farms, livestock, insurance policies or loans.
+- **Document Vault**: store PDFs and images up to 700 KB directly in Firestore and link them to properties, farms, livestock, insurance policies or loans.
 - **Analytics**: 15 ApexCharts views (net worth growth, allocation, assets vs liabilities, passive income, wealth trend, investment growth, lending growth, agriculture revenue, farm profitability, livestock value, property appreciation, goal progress, FIRE progress, cash flow, income sources).
 - **FIRE dashboard**: target, progress, gap, estimated FIRE date and a projection chart.
 - **Wealth simulator**: best, expected and worst cases plus an inflation-adjusted projection.
@@ -40,7 +40,6 @@ asset-manager/
 ├── .firebaserc                # Project: nsanji-asset-manager
 ├── firestore.rules            # Per-user data isolation
 ├── firestore.indexes.json
-├── storage.rules              # Per-user file isolation, 20 MB, PDF/images only
 ├── ngsw-config.json           # Service worker caching
 ├── public/                    # Manifest, icons
 └── src/
@@ -64,7 +63,7 @@ asset-manager/
         │   ├── portfolio.service.ts      # Aggregated analytics (signals)
         │   ├── notification.service.ts   # Renewal and maturity alerts
         │   ├── search.service.ts         # Global search index
-        │   ├── document-storage.service.ts
+        │   ├── document-vault.service.ts
         │   ├── profile.service.ts
         │   └── seed-data.service.ts
         ├── shared/
@@ -95,7 +94,7 @@ users/{uid}/insurance/{id}
 users/{uid}/vehicles/{id}
 users/{uid}/liabilities/{id}
 users/{uid}/goals/{id}
-users/{uid}/documents/{id}          # metadata; file in Storage at users/{uid}/documents/{type}/{file}
+users/{uid}/documents/{id}          # document metadata and optional small base64 file content
 users/{uid}/networthHistory/{YYYY-MM}
 ```
 
@@ -130,9 +129,9 @@ npm install
    - **Microsoft**. Register an app in Microsoft Entra ID and add the redirect URI `https://nsanji-asset-manager.firebaseapp.com/__/auth/handler`. Then paste the client ID and secret into Firebase.
    - **Email/Password**
 4. **Authentication → Settings → Authorized domains**: add your hosting domain (and `localhost` for dev).
-5. Create a **Firestore database** in production mode and enable **Storage**.
+5. Create a **Firestore database** in production mode.
 
-> The Firebase web config is not a secret. Data access is enforced by `firestore.rules` and `storage.rules`.
+> The Firebase web config is not a secret. Data access is enforced by `firestore.rules`.
 
 ### 3. Run locally
 
@@ -140,7 +139,9 @@ npm install
 npm start          # http://localhost:4200
 ```
 
-Sign in, or click **Explore demo workspace**. Then click **Load sample data** on the dashboard (or in Settings) to load a realistic portfolio: 3 properties, 3 agricultural lands, 2 farms, 6 livestock groups, 4 loans, 9 stocks, 6 mutual funds, 4 FDs, 13 other assets, 6 insurance policies, 3 vehicles, 5 liabilities, 5 goals and 24 months of net worth history.
+Sign in, or click **Explore demo workspace**. A Firebase account uses Firestore; demo mode stores data only in this browser. In Settings, choose **Test Firestore connection** to verify the signed-in account can reach the live database. Then click **Load sample data** on the dashboard or in Settings to create a realistic sample portfolio in your account: 3 properties, 3 agricultural lands, 2 farms, 6 livestock groups, 4 loans, 9 stocks, 6 mutual funds, 4 FDs, 13 other assets, 6 insurance policies, 3 vehicles, 5 liabilities, 5 goals and 24 months of net worth history. Loading samples replaces records in the affected asset collections for that signed-in account.
+
+The document vault stores files directly in Firestore, so uploads are limited to 700 KB. Larger files must be kept outside the app and can be linked separately.
 
 ### 4. Firebase emulators (optional)
 
@@ -211,8 +212,7 @@ The production build is written to `dist/asset-manager/browser`, which `firebase
 
 ## Security notes
 
-- Every Firestore and Storage path is scoped to `request.auth.uid`. All other paths are denied.
-- Storage uploads are limited to PDFs and images under 20 MB, checked both client-side and in the rules.
+- Every Firestore path is scoped to `request.auth.uid`. All other paths are denied.
+- Document uploads are limited to PDFs and images under 700 KB in the app; Firestore rules limit embedded file data to fit safely under the 1 MiB per-document limit.
 - The post-login `returnUrl` is restricted to in-app relative paths, which blocks open redirects.
-- Uploaded file names are sanitised before they are used in storage paths.
 - External document links use `rel="noopener noreferrer"`.

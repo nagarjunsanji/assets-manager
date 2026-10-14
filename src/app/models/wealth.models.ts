@@ -240,8 +240,10 @@ export interface VaultDocument extends Entity {
   entityType: DocumentEntityType;
   entityId?: string;
   entityName?: string;
-  storagePath: string;
-  url: string;
+  /** Base64 data URL for files stored directly in Firestore. */
+  contentData?: string;
+  /** External URL retained for older document records and manually linked files. */
+  url?: string;
   contentType: string;
   size: number;
   tags?: string;

@@ -11,7 +11,7 @@
     "emulators": "npm run firebase -- emulators:start",
     "deploy": "ng build && npm run firebase -- deploy",
     "deploy:hosting": "ng build && npm run firebase -- deploy --only hosting",
-    "deploy:rules": "npm run firebase -- deploy --only firestore:rules,firestore:indexes,storage"
+    "deploy:rules": "npm run firebase -- deploy --only firestore:rules,firestore:indexes"
   },
   "prettier": {
     "printWidth": 100,

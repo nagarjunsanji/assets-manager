@@ -20,9 +20,13 @@ service cloud.firestore {
       ];
     }
 
-    function validPayload() {
+    function validPayload(collection) {
       return request.resource.data.size() <= 60
-        && (!('id' in request.resource.data));
+        && (!('id' in request.resource.data))
+        && (collection != 'documents'
+          || !('contentData' in request.resource.data)
+          || (request.resource.data.contentData is string
+            && request.resource.data.contentData.size() <= 960000));
     }
 
     // User profile document (users collection)
@@ -32,7 +36,7 @@ service cloud.firestore {
 
       match /{collection}/{docId} {
         allow read, delete: if isOwner(uid) && allowedCollection(collection);
-        allow create, update: if isOwner(uid) && allowedCollection(collection) && validPayload();
+        allow create, update: if isOwner(uid) && allowedCollection(collection) && validPayload(collection);
       }
     }
 

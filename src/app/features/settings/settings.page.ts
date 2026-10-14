@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
+import { FirestoreDataStore } from '../../core/data/firestore-data-store';
 import { ThemeService } from '../../core/theme/theme.service';
 import { ProfileService } from '../../services/profile.service';
 import { SeedDataService } from '../../services/seed-data.service';
@@ -76,7 +77,24 @@ import { ConfirmDialog, ConfirmDialogData } from '../../shared/dialogs/confirm-d
               {{ auth.user()?.demo ? '(demo workspace stored in this browser)' : '(synced to Firestore)' }}
             </p>
             <div class="buttons">
-              <button mat-stroked-button (click)="loadSample()" [disabled]="busy()"><mat-icon>auto_awesome</mat-icon>Load sample data</button>
+              <button mat-stroked-button (click)="checkConnection()" [disabled]="busy() || checkingConnection() || auth.user()?.demo">
+                <mat-icon>{{ connectionState() === 'connected' ? 'cloud_done' : 'cloud_sync' }}</mat-icon>
+                {{ checkingConnection() ? 'Checking Firestore…' : 'Test Firestore connection' }}
+              </button>
+              <p class="connection" [class.connected]="connectionState() === 'connected'" [class.failed]="connectionState() === 'failed'" role="status">
+                @if (connectionState() === 'connected') {
+                  Firestore connection verified for this account.
+                } @else if (connectionState() === 'failed') {
+                  Firestore connection failed. Check your network, sign-in and Firestore rules.
+                } @else if (auth.user()?.demo) {
+                  Demo data is stored only in this browser.
+                } @else {
+                  Test the live Firestore connection for this account.
+                }
+              </p>
+              <button mat-stroked-button (click)="loadSample()" [disabled]="busy()">
+                <mat-icon>auto_awesome</mat-icon>{{ auth.user()?.demo ? 'Load demo sample data' : 'Load Firestore sample data' }}
+              </button>
               <button mat-stroked-button (click)="exportData()"><mat-icon>download</mat-icon>Export JSON backup</button>
               <button mat-stroked-button class="danger" (click)="clearAll()" [disabled]="busy()"><mat-icon>delete_forever</mat-icon>Delete all records</button>
             </div>
@@ -96,6 +114,9 @@ import { ConfirmDialog, ConfirmDialogData } from '../../shared/dialogs/confirm-d
     mat-form-field { width: 100%; }
     .actions { display: flex; justify-content: flex-end; }
     .buttons { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+    .connection { margin: 0; font-size: 13px; color: var(--text-muted); }
+    .connection.connected { color: var(--success, #00c48c); }
+    .connection.failed { color: var(--danger); }
     .danger { color: var(--danger) !important; border-color: color-mix(in srgb, var(--danger) 40%, transparent) !important; }
     @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
     @media (max-width: 560px) { form { grid-template-columns: 1fr; } }
@@ -106,9 +127,12 @@ export class SettingsPage {
   protected readonly theme = inject(ThemeService);
   private readonly profile = inject(ProfileService);
   private readonly seed = inject(SeedDataService);
+  private readonly firestore = inject(FirestoreDataStore);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(MatDialog);
   protected readonly busy = signal(false);
+  protected readonly checkingConnection = signal(false);
+  protected readonly connectionState = signal<'unknown' | 'connected' | 'failed'>('unknown');
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
     displayName: ['', [Validators.maxLength(80)]],
@@ -139,14 +163,37 @@ export class SettingsPage {
   }
 
   protected async loadSample(): Promise<void> {
-    if (!(await this.confirm('Load sample data?', 'Existing records in each module will be replaced with the sample portfolio.', 'Load'))) return;
-    await this.busyRun(() => this.seed.loadSampleData(), 'Sample portfolio loaded');
+    const demo = this.auth.user()?.demo;
+    const destination = demo ? 'this browser demo' : 'your signed-in Firestore account';
+    if (!(await this.confirm('Load sample data?', `Existing records in each module in ${destination} will be replaced with the sample portfolio.`, 'Load'))) return;
+    await this.busyRun(
+      () => this.seed.loadSampleData(),
+      demo ? 'Demo sample portfolio loaded' : 'Sample portfolio saved to Firestore',
+    );
     this.form.markAsPristine();
   }
 
   protected async clearAll(): Promise<void> {
     if (!(await this.confirm('Delete all records?', 'Every asset, liability, goal and history snapshot will be permanently deleted.', 'Delete all', true))) return;
     await this.busyRun(() => this.seed.clearAll(), 'All records deleted');
+  }
+
+  protected async checkConnection(): Promise<void> {
+    const user = this.auth.user();
+    if (!user || user.demo) return;
+
+    this.checkingConnection.set(true);
+    this.connectionState.set('unknown');
+    try {
+      await this.firestore.checkConnection(this.auth.userPath(user));
+      this.connectionState.set('connected');
+      this.toast.success('Firestore connection verified');
+    } catch (err) {
+      this.connectionState.set('failed');
+      this.toast.error(err instanceof Error ? err.message : 'Firestore connection failed');
+    } finally {
+      this.checkingConnection.set(false);
+    }
   }
 
   protected exportData(): void {

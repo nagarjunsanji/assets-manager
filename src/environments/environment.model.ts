@@ -6,7 +6,6 @@ export interface AppEnvironment {
     authDomain: string;
     databaseURL: string;
     projectId: string;
-    storageBucket: string;
     messagingSenderId: string;
     appId: string;
     measurementId?: string;

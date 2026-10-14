@@ -1,5 +1,5 @@
 <div class="page">
-  <app-page-header title="Document Vault" subtitle="Deeds, policies, farm records and loan agreements in Firebase Storage" icon="folder_shared" />
+  <app-page-header title="Document Vault" subtitle="Small PDFs and images stored securely in Firestore" icon="folder_shared" />
 
   <section class="glass-card uploader">
     <div class="link-fields">
@@ -36,7 +36,7 @@
       <input #fileInput type="file" multiple accept="image/*,application/pdf" (change)="onFiles(fileInput)" hidden />
       <mat-icon>cloud_upload</mat-icon>
       <strong>Drop files here or click to browse</strong>
-      <small>PDF and images · up to 20 MB each</small>
+      <small>PDF and images · up to 700 KB each (Firestore document limit)</small>
     </label>
     @if (progress() !== null) {
       <mat-progress-bar mode="determinate" [value]="progress()" />
@@ -61,13 +61,13 @@
   <div class="grid stagger">
     @for (d of documents(); track d.id) {
       <article class="glass-card hoverable doc">
-        <a class="preview" [href]="d.url" target="_blank" rel="noopener noreferrer" [attr.aria-label]="'Open ' + d.name">
-          @if (isImage(d)) {
-            <img [src]="d.url" [alt]="d.name" loading="lazy" />
+        <button class="preview" type="button" (click)="openDocument(d)" [attr.aria-label]="'Open ' + d.name">
+          @if (isImage(d) && (d.contentData || d.url)) {
+            <img [src]="d.contentData || d.url" [alt]="d.name" loading="lazy" />
           } @else {
-            <mat-icon>picture_as_pdf</mat-icon>
+            <mat-icon>{{ d.contentType === 'application/pdf' ? 'picture_as_pdf' : 'description' }}</mat-icon>
           }
-        </a>
+        </button>
         <div class="meta">
           <strong [matTooltip]="d.name">{{ d.name }}</strong>
           <span class="chip tone-info"><mat-icon>{{ icons[d.entityType] }}</mat-icon>{{ d.entityName ?? d.entityType }}</span>
@@ -77,14 +77,14 @@
           }
         </div>
         <div class="actions">
-          <a mat-icon-button [href]="d.url" target="_blank" rel="noopener noreferrer" [download]="d.name" aria-label="Download"><mat-icon>download</mat-icon></a>
+          <button mat-icon-button (click)="downloadDocument(d)" aria-label="Download"><mat-icon>download</mat-icon></button>
           <button mat-icon-button (click)="remove(d)" aria-label="Delete"><mat-icon>delete</mat-icon></button>
         </div>
       </article>
     } @empty {
       <div class="empty glass-card">
         <mat-icon>folder_open</mat-icon>
-        <p>No documents yet. Upload property deeds, insurance policies or loan agreements.</p>
+        <p>No documents yet. Add a small PDF or image to store it in Firestore.</p>
       </div>
     }
   </div>
