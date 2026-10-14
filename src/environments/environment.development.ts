@@ -6,6 +6,7 @@ export const environment: AppEnvironment = {
   firebase: {
     apiKey: "AIzaSyAl8WFV5j2vzSkZZXh6yvvNA9jU8TwjTcE",
     authDomain: "nsanji-asset-manager.firebaseapp.com",
+    databaseURL: "https://nsanji-asset-manager-default-rtdb.firebaseio.com",
     projectId: "nsanji-asset-manager",
     storageBucket: "nsanji-asset-manager.firebasestorage.app",
     messagingSenderId: "240465834835",
