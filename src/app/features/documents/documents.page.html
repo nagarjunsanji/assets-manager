@@ -1,0 +1,91 @@
+<div class="page">
+  <app-page-header title="Document Vault" subtitle="Deeds, policies, farm records and loan agreements in Firebase Storage" icon="folder_shared" />
+
+  <section class="glass-card uploader">
+    <div class="link-fields">
+      <mat-form-field>
+        <mat-label>Link to</mat-label>
+        <mat-select [ngModel]="entityType()" (ngModelChange)="onTypeChange($event)">
+          @for (t of types; track t) {
+            <mat-option [value]="t">{{ t }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Record</mat-label>
+        <mat-select [ngModel]="entityId()" (ngModelChange)="entityId.set($event)" [disabled]="!entityOptions().length">
+          <mat-option value="">General</mat-option>
+          @for (o of entityOptions(); track o.value) {
+            <mat-option [value]="o.value">{{ o.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Tags</mat-label>
+        <input matInput [ngModel]="tags()" (ngModelChange)="tags.set($event)" placeholder="deed, 2024, registration" maxlength="120" />
+      </mat-form-field>
+    </div>
+
+    <label
+      class="dropzone"
+      [class.dragging]="dragging()"
+      (dragover)="$event.preventDefault(); dragging.set(true)"
+      (dragleave)="dragging.set(false)"
+      (drop)="onDrop($event)"
+    >
+      <input #fileInput type="file" multiple accept="image/*,application/pdf" (change)="onFiles(fileInput)" hidden />
+      <mat-icon>cloud_upload</mat-icon>
+      <strong>Drop files here or click to browse</strong>
+      <small>PDF and images · up to 20 MB each</small>
+    </label>
+    @if (progress() !== null) {
+      <mat-progress-bar mode="determinate" [value]="progress()" />
+    }
+  </section>
+
+  <div class="toolbar">
+    <div class="filters">
+      <button class="filter" [class.active]="filterType() === 'All'" (click)="filterType.set('All')">All · {{ repo.count() }}</button>
+      @for (t of types; track t) {
+        @if (counts().get(t)) {
+          <button class="filter" [class.active]="filterType() === t" (click)="filterType.set(t)">{{ t }} · {{ counts().get(t) }}</button>
+        }
+      }
+    </div>
+    <label class="search">
+      <mat-icon>search</mat-icon>
+      <input type="search" placeholder="Search documents" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+    </label>
+  </div>
+
+  <div class="grid stagger">
+    @for (d of documents(); track d.id) {
+      <article class="glass-card hoverable doc">
+        <a class="preview" [href]="d.url" target="_blank" rel="noopener noreferrer" [attr.aria-label]="'Open ' + d.name">
+          @if (isImage(d)) {
+            <img [src]="d.url" [alt]="d.name" loading="lazy" />
+          } @else {
+            <mat-icon>picture_as_pdf</mat-icon>
+          }
+        </a>
+        <div class="meta">
+          <strong [matTooltip]="d.name">{{ d.name }}</strong>
+          <span class="chip tone-info"><mat-icon>{{ icons[d.entityType] }}</mat-icon>{{ d.entityName ?? d.entityType }}</span>
+          <small>{{ size(d.size) }} · {{ date(d.createdAt) }}</small>
+          @if (d.tags) {
+            <small class="tags">#{{ d.tags }}</small>
+          }
+        </div>
+        <div class="actions">
+          <a mat-icon-button [href]="d.url" target="_blank" rel="noopener noreferrer" [download]="d.name" aria-label="Download"><mat-icon>download</mat-icon></a>
+          <button mat-icon-button (click)="remove(d)" aria-label="Delete"><mat-icon>delete</mat-icon></button>
+        </div>
+      </article>
+    } @empty {
+      <div class="empty glass-card">
+        <mat-icon>folder_open</mat-icon>
+        <p>No documents yet. Upload property deeds, insurance policies or loan agreements.</p>
+      </div>
+    }
+  </div>
+</div>

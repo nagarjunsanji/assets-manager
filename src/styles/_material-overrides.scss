@@ -1,0 +1,72 @@
+// Map brand surfaces onto Material system tokens.
+html:not(.light) {
+  --mat-sys-background: #0B1020;
+  --mat-sys-surface: #131A2E;
+  --mat-sys-surface-container-lowest: #0B1020;
+  --mat-sys-surface-container-low: #111829;
+  --mat-sys-surface-container: #161E36;
+  --mat-sys-surface-container-high: #1A2340;
+  --mat-sys-surface-container-highest: #212B4C;
+  --mat-sys-primary: #4F8CFF;
+  --mat-sys-on-primary: #FFFFFF;
+  --mat-sys-on-surface: #E8ECF8;
+  --mat-sys-on-surface-variant: #8A94B2;
+  --mat-sys-outline: rgba(255, 255, 255, 0.16);
+  --mat-sys-outline-variant: rgba(255, 255, 255, 0.08);
+}
+
+html.light {
+  --mat-sys-primary: #2F6BEB;
+  --mat-sys-on-primary: #FFFFFF;
+  --mat-sys-background: #F4F6FB;
+}
+
+.mat-mdc-dialog-surface {
+  border-radius: var(--radius) !important;
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(24px);
+}
+
+.mat-mdc-menu-panel,
+.mat-mdc-autocomplete-panel,
+.mat-mdc-select-panel {
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--glass-border);
+}
+
+.mat-mdc-unelevated-button,
+.mat-mdc-outlined-button,
+.mat-mdc-button {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+}
+
+.mat-mdc-unelevated-button:not(:disabled) {
+  background: linear-gradient(135deg, var(--primary), #6C6BFF) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 18px rgba(79, 140, 255, 0.3);
+}
+
+.mat-mdc-unelevated-button.btn-danger:not(:disabled) {
+  background: var(--danger) !important;
+  box-shadow: 0 6px 18px rgba(255, 92, 122, 0.3);
+}
+
+.mat-mdc-menu-item.danger,
+.mat-mdc-menu-item.danger mat-icon {
+  color: var(--danger) !important;
+}
+
+.mat-mdc-table,
+.mat-mdc-paginator {
+  background: transparent !important;
+}
+
+.mat-mdc-snack-bar-container {
+  &.toast-success { --mdc-snackbar-container-color: #0f5f49; --mat-snack-bar-button-color: #fff; }
+  &.toast-error { --mdc-snackbar-container-color: #7a1f33; --mat-snack-bar-button-color: #fff; }
+}
+
+.mat-mdc-form-field-subscript-wrapper {
+  min-height: 4px;
+}

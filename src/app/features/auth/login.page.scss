@@ -1,0 +1,104 @@
+:host { display: block; height: 100dvh; overflow-y: auto; }
+
+.login {
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: center;
+  gap: 48px;
+  padding: clamp(20px, 5vw, 72px);
+  max-width: 1360px;
+  margin: 0 auto;
+}
+
+.hero {
+  position: relative;
+  animation: page-in 0.6s ease both;
+
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; strong { letter-spacing: 0.08em; } }
+  .logo {
+    width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; color: #fff;
+    background: linear-gradient(135deg, var(--primary), #7B5CFF 55%, var(--gold) 120%);
+    box-shadow: 0 10px 28px rgba(79, 140, 255, 0.4);
+  }
+  h1 { font-size: clamp(32px, 4.4vw, 56px); line-height: 1.08; letter-spacing: -0.035em; margin: 0 0 20px; font-weight: 800; }
+  .gradient { background: linear-gradient(90deg, var(--primary), var(--success) 60%, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { color: var(--text-muted); font-size: 17px; line-height: 1.6; max-width: 540px; }
+}
+
+.highlights {
+  list-style: none;
+  padding: 0;
+  margin: 28px 0 0;
+  display: grid;
+  gap: 14px;
+
+  li { display: flex; align-items: center; gap: 12px; color: var(--text); font-size: 15px; }
+  mat-icon { color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); border-radius: 10px; padding: 6px; width: 36px; height: 36px; box-sizing: border-box; font-size: 22px; }
+}
+
+.floating {
+  position: absolute;
+  right: 4%;
+  top: 6%;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: float 6s ease-in-out infinite;
+
+  span { font-size: 12px; color: var(--text-muted); }
+  strong { font-size: 24px; }
+  small { display: flex; align-items: center; gap: 4px; font-weight: 600; mat-icon { font-size: 16px; width: 16px; height: 16px; } }
+}
+
+.panel {
+  padding: clamp(24px, 3vw, 40px);
+  animation: card-in 0.6s 0.1s ease both;
+
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  h2 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+}
+
+.providers { display: grid; gap: 12px; }
+
+.provider {
+  height: 48px;
+  justify-content: center;
+  border-radius: 14px !important;
+  svg { width: 20px; height: 20px; margin-right: 10px; vertical-align: middle; }
+}
+
+.divider {
+  display: flex; align-items: center; gap: 12px; margin: 20px 0; color: var(--text-muted); font-size: 12px;
+  &::before, &::after { content: ''; flex: 1; height: 1px; background: var(--glass-border); }
+}
+
+form { display: flex; flex-direction: column; gap: 4px; mat-form-field { width: 100%; } mat-icon[matPrefix] { margin: 0 8px 0 12px; color: var(--text-muted); } }
+
+.submit { height: 48px; margin-top: 8px; border-radius: 14px !important; mat-spinner { margin: 0 auto; } }
+
+.links { display: flex; justify-content: space-between; margin-top: 8px; }
+
+.demo { width: 100%; height: 46px; margin-top: 12px; border-radius: 14px !important; border-color: color-mix(in srgb, var(--gold) 40%, transparent) !important; color: var(--gold) !important; }
+
+.alert {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 12px; font-size: 13px; margin: 4px 0;
+  &.error { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+  &.info { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+}
+
+.config-hint {
+  display: flex; gap: 8px; align-items: flex-start; margin: 16px 0 0; font-size: 12.5px; color: var(--text-muted); line-height: 1.5;
+  mat-icon { color: var(--warning); font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; }
+  code { color: var(--text); }
+}
+
+@keyframes float { 50% { transform: translateY(-10px); } }
+
+@media (max-width: 960px) {
+  .login { grid-template-columns: 1fr; gap: 28px; }
+  .floating, .highlights { display: none; }
+  .hero .brand { margin-bottom: 20px; }
+  .hero h1 { font-size: 32px; }
+}

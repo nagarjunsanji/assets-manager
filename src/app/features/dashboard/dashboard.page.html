@@ -1,0 +1,146 @@
+<div class="page">
+  <section class="hero glass-card">
+    <div class="hero-left">
+      <p class="eyebrow">{{ today }}</p>
+      <h1>{{ greeting() }}</h1>
+      <p class="muted">Here's how your family office is performing today.</p>
+      <div class="networth">
+        <span class="nw-label">Total Net Worth</span>
+        <span class="nw-value"><app-count-up [value]="s().netWorth" format="inr-full" [duration]="1600" /></span>
+        @if (p.netWorthChange(); as change) {
+          <span class="nw-change" [class.pos]="change >= 0" [class.neg]="change < 0">
+            <mat-icon>{{ change >= 0 ? 'north_east' : 'south_east' }}</mat-icon>
+            {{ change >= 0 ? '+' : '' }}{{ change.toFixed(2) }}% this month
+          </span>
+        }
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="mini">
+        <span>Assets</span>
+        <strong>{{ fmt(s().totalAssets) }}</strong>
+      </div>
+      <div class="mini">
+        <span>Liabilities</span>
+        <strong class="neg">{{ fmt(s().totalLiabilities) }}</strong>
+      </div>
+      <div class="mini">
+        <span>FIRE Progress</span>
+        <strong class="gold">{{ s().fire.progress.toFixed(1) }}%</strong>
+      </div>
+    </div>
+  </section>
+
+  @if (p.loaded() && p.isEmpty()) {
+    <section class="empty glass-card">
+      <mat-icon>rocket_launch</mat-icon>
+      <div>
+        <h3>Start building your wealth map</h3>
+        <p class="muted">Add assets from the sidebar, or load a realistic sample portfolio to explore every dashboard.</p>
+      </div>
+      <button mat-flat-button (click)="loadSample()" [disabled]="seeding()">
+        <mat-icon>auto_awesome</mat-icon>
+        {{ seeding() ? 'Loading…' : 'Load sample data' }}
+      </button>
+    </section>
+  }
+
+  <div class="kpi-grid stagger">
+    <app-stat-card label="Total Net Worth" [value]="s().netWorth" icon="account_balance" accent="primary" [delta]="p.netWorthChange()" />
+    <app-stat-card label="Total Assets" [value]="s().totalAssets" icon="trending_up" accent="success" [hint]="s().assetClasses.length + ' asset classes'" />
+    <app-stat-card label="Total Liabilities" [value]="s().totalLiabilities" icon="credit_card" accent="danger" [hint]="s().debtToAsset.toFixed(1) + '% of assets'" />
+    <app-stat-card label="Passive Income / mo" [value]="s().passiveIncome" icon="payments" accent="gold" [hint]="fmt(s().passiveIncome * 12) + ' per year'" />
+    <app-stat-card label="Monthly Cashflow" [value]="s().monthlyCashflow" icon="swap_vert" [accent]="s().monthlyCashflow >= 0 ? 'cyan' : 'danger'" [hint]="s().savingsRate.toFixed(1) + '% savings rate'" />
+    <app-stat-card label="Investment Returns" [value]="s().investmentReturn" icon="show_chart" accent="purple" [delta]="s().investmentReturnPct" deltaLabel="Absolute return on invested capital" />
+    <app-stat-card label="Financial Health" [value]="s().healthScore" format="number" icon="favorite" [accent]="s().healthScore >= 70 ? 'success' : s().healthScore >= 45 ? 'warning' : 'danger'" hint="Score out of 100" />
+  </div>
+
+  <div class="chart-grid stagger">
+    <app-chart-card class="span-8" title="Net Worth Growth" subtitle="Monthly snapshots" [options]="netWorthChart()" [height]="320" />
+    <app-chart-card class="span-4" title="Asset Allocation" subtitle="By asset class" [options]="allocationChart()" [height]="320" />
+  </div>
+
+  <div class="chart-grid stagger">
+    <section class="glass-card health span-4">
+      <header>
+        <h3>Financial Health Score</h3>
+        <a mat-button routerLink="/analytics">Details</a>
+      </header>
+      <app-chart-card [options]="healthChart()" [height]="220" class="embedded" />
+      <ul>
+        @for (f of s().healthFactors; track f.label) {
+          <li>
+            <div class="row">
+              <span>{{ f.label }}</span>
+              <strong>{{ f.score.toFixed(0) }}/{{ f.max }}</strong>
+            </div>
+            <mat-progress-bar mode="determinate" [value]="(f.score / f.max) * 100" />
+            <small class="muted">{{ f.hint }}</small>
+          </li>
+        }
+      </ul>
+    </section>
+    <app-chart-card class="span-4" title="Income Sources" subtitle="Monthly passive income" [options]="incomeChart()" [height]="340" />
+    <app-chart-card class="span-4" title="Assets vs Liabilities" subtitle="Last 12 months" [options]="assetLiabilityChart()" [height]="340" />
+  </div>
+
+  <div class="chart-grid stagger">
+    <section class="glass-card list-card span-4">
+      <header>
+        <h3>Upcoming Alerts</h3>
+        <span class="chip tone-warning">{{ alerts.active().length }}</span>
+      </header>
+      @for (a of alerts.active().slice(0, 6); track a.id) {
+        <a class="list-row" [routerLink]="a.route">
+          <span class="row-icon" [class]="'sev-' + a.severity"><mat-icon>{{ a.icon }}</mat-icon></span>
+          <div>
+            <strong>{{ a.title }}</strong>
+            <small>{{ a.message }}</small>
+          </div>
+        </a>
+      } @empty {
+        <p class="muted empty-row">No upcoming renewals or maturities.</p>
+      }
+    </section>
+
+    <section class="glass-card list-card span-4">
+      <header>
+        <h3>Goals</h3>
+        <a mat-button routerLink="/goals">View all</a>
+      </header>
+      @for (g of goals(); track g.id) {
+        <div class="goal">
+          <div class="row">
+            <strong>{{ g.name }}</strong>
+            <span>{{ g.progress.toFixed(0) }}%</span>
+          </div>
+          <div class="bar"><span [style.width.%]="g.progress"></span></div>
+          <small class="muted">{{ fmt(g.currentAmount) }} of {{ fmt(g.targetAmount) }} · by {{ fmtDate(g.targetDate) }}</small>
+        </div>
+      } @empty {
+        <p class="muted empty-row">No goals yet.</p>
+      }
+    </section>
+
+    <section class="glass-card list-card span-4">
+      <header>
+        <h3>Top Holdings</h3>
+      </header>
+      @for (h of topHoldings(); track h.name) {
+        <div class="list-row">
+          <span class="row-icon"><mat-icon>{{ h.icon }}</mat-icon></span>
+          <div>
+            <strong>{{ h.name }}</strong>
+            <small>{{ h.kind }}</small>
+          </div>
+          <div class="right">
+            <strong>{{ fmt(h.value) }}</strong>
+            <small [class.pos]="h.change >= 0" [class.neg]="h.change < 0">{{ h.change >= 0 ? '+' : '' }}{{ h.change.toFixed(1) }}%</small>
+          </div>
+        </div>
+      } @empty {
+        <p class="muted empty-row">No holdings yet.</p>
+      }
+    </section>
+  </div>
+</div>

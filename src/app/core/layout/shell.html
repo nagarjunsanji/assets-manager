@@ -1,0 +1,154 @@
+<mat-sidenav-container class="shell" [class.collapsed]="collapsed() && !isMobile()" autosize>
+  <mat-sidenav
+    class="sidebar"
+    [mode]="isMobile() ? 'over' : 'side'"
+    [opened]="isMobile() ? mobileOpen() : true"
+    (closedStart)="mobileOpen.set(false)"
+    [fixedInViewport]="isMobile()"
+  >
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <mat-icon>diamond</mat-icon>
+      </div>
+      @if (!collapsed() || isMobile()) {
+        <div class="brand-text">
+          <strong>ASSET-MANAGER</strong>
+          <span>Family Office</span>
+        </div>
+      }
+    </div>
+
+    <nav class="nav" aria-label="Main navigation">
+      @for (group of nav; track group.label) {
+        @if (!collapsed() || isMobile()) {
+          <p class="nav-group">{{ group.label }}</p>
+        } @else {
+          <div class="nav-divider"></div>
+        }
+        @for (item of group.items; track item.route) {
+          <a
+            class="nav-item"
+            [routerLink]="item.route"
+            routerLinkActive="active"
+            [matTooltip]="collapsed() && !isMobile() ? item.label : ''"
+            matTooltipPosition="right"
+          >
+            <mat-icon>{{ item.icon }}</mat-icon>
+            @if (!collapsed() || isMobile()) {
+              <span>{{ item.label }}</span>
+            }
+          </a>
+        }
+      }
+    </nav>
+
+    @if (!collapsed() || isMobile()) {
+      <div class="networth-mini glass-card">
+        <span>Net Worth</span>
+        <strong><app-count-up [value]="portfolio.summary().netWorth" /></strong>
+        <small>Health score {{ portfolio.summary().healthScore }}/100</small>
+      </div>
+    }
+  </mat-sidenav>
+
+  <mat-sidenav-content class="content">
+    <header class="toolbar">
+      <button mat-icon-button (click)="toggleSidebar()" aria-label="Toggle navigation">
+        <mat-icon>{{ isMobile() ? 'menu' : collapsed() ? 'menu_open' : 'menu' }}</mat-icon>
+      </button>
+
+      <div class="search">
+        <mat-icon>search</mat-icon>
+        <input
+          #searchInput
+          type="search"
+          placeholder="Search assets, policies, borrowers…"
+          aria-label="Global search"
+          [matAutocomplete]="auto"
+          (input)="onSearchInput(searchInput.value)"
+        />
+        <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayNothing" (optionSelected)="onSearchSelect($event, searchInput)" class="search-panel">
+          @for (r of results(); track $index) {
+            <mat-option [value]="r">
+              <div class="search-result">
+                <mat-icon>{{ r.icon }}</mat-icon>
+                <div>
+                  <strong>{{ r.label }}</strong>
+                  <small>{{ r.sublabel }}</small>
+                </div>
+              </div>
+            </mat-option>
+          }
+          @if (query().length >= 2 && results().length === 0) {
+            <mat-option disabled>No matches</mat-option>
+          }
+        </mat-autocomplete>
+      </div>
+
+      <span class="spacer"></span>
+
+      @if (user()?.demo) {
+        <span class="demo-pill" matTooltip="Data is stored only in this browser">Demo workspace</span>
+      }
+
+      <button mat-icon-button (click)="theme.toggle()" [attr.aria-label]="'Switch to ' + (theme.mode() === 'dark' ? 'light' : 'dark') + ' theme'" matTooltip="Toggle theme">
+        <mat-icon>{{ theme.mode() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      </button>
+
+      <button
+        mat-icon-button
+        [matMenuTriggerFor]="notifMenu"
+        aria-label="Notifications"
+        [matBadge]="notifications.unreadCount() || null"
+        matBadgeColor="warn"
+      >
+        <mat-icon>notifications</mat-icon>
+      </button>
+      <mat-menu #notifMenu="matMenu" class="notif-menu" xPosition="before">
+        <div class="notif-header" (click)="$event.stopPropagation()">
+          <strong>Alerts</strong>
+          @if (notifications.active().length) {
+            <button mat-button (click)="notifications.dismissAll()">Mark all read</button>
+          }
+        </div>
+        @for (n of notifications.active(); track n.id) {
+          <a mat-menu-item [routerLink]="n.route" class="notif" [class]="'sev-' + n.severity">
+            <mat-icon>{{ n.icon }}</mat-icon>
+            <div class="notif-text">
+              <strong>{{ n.title }}</strong>
+              <small>{{ n.message }}</small>
+            </div>
+          </a>
+        } @empty {
+          <div class="notif-empty">
+            <mat-icon>notifications_off</mat-icon>
+            You're all caught up
+          </div>
+        }
+      </mat-menu>
+
+      <button mat-button class="profile-btn" [matMenuTriggerFor]="profileMenu" aria-label="Account menu">
+        @if (user()?.photoURL) {
+          <img [src]="user()!.photoURL" alt="" class="avatar" referrerpolicy="no-referrer" />
+        } @else {
+          <span class="avatar initials">{{ initials() }}</span>
+        }
+        <span class="profile-name">{{ user()?.displayName }}</span>
+      </button>
+      <mat-menu #profileMenu="matMenu" xPosition="before">
+        <div class="profile-card" (click)="$event.stopPropagation()">
+          <strong>{{ user()?.displayName }}</strong>
+          <small>{{ user()?.email }}</small>
+        </div>
+        <mat-divider />
+        <a mat-menu-item routerLink="/settings"><mat-icon>tune</mat-icon>Settings</a>
+        <button mat-menu-item (click)="theme.toggle()"><mat-icon>contrast</mat-icon>Toggle theme</button>
+        <button mat-menu-item (click)="signOut()"><mat-icon>logout</mat-icon>Sign out</button>
+      </mat-menu>
+    </header>
+
+    <main class="main">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

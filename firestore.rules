@@ -1,0 +1,44 @@
+rules_version = '2';
+
+// Every record lives under users/{uid}/... so each user can only ever touch their own data.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function allowedCollection(name) {
+      return name in [
+        'assets', 'properties', 'agricultureLands', 'farms', 'livestock', 'lending',
+        'stocks', 'mutualFunds', 'fixedDeposits', 'insurance', 'vehicles',
+        'liabilities', 'goals', 'documents', 'networthHistory'
+      ];
+    }
+
+    function validPayload() {
+      return request.resource.data.size() <= 60
+        && (!('id' in request.resource.data));
+    }
+
+    // User profile document (users collection)
+    match /users/{uid} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && request.resource.data.size() <= 40;
+
+      match /{collection}/{docId} {
+        allow read, delete: if isOwner(uid) && allowedCollection(collection);
+        allow create, update: if isOwner(uid) && allowedCollection(collection) && validPayload();
+      }
+    }
+
+    // Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

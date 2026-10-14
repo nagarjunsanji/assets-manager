@@ -1,0 +1,69 @@
+// Design tokens. Dark is the default; `html.light` swaps the palette.
+:root,
+html.dark {
+  --bg: #0B1020;
+  --surface: #131A2E;
+  --surface-2: #1A2240;
+  --text: #E8ECF8;
+  --text-muted: #8A94B2;
+  --primary: #4F8CFF;
+  --success: #00C48C;
+  --gold: #F5B942;
+  --warning: #FFB020;
+  --danger: #FF5C7A;
+  --purple: #9B6BFF;
+  --cyan: #22D3EE;
+
+  --glass: rgba(19, 26, 46, 0.66);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-highlight: rgba(255, 255, 255, 0.045);
+  --sidebar-bg: rgba(11, 16, 32, 0.82);
+  --toolbar-bg: rgba(11, 16, 32, 0.7);
+  --input-bg: rgba(255, 255, 255, 0.04);
+  --scrollbar: rgba(138, 148, 178, 0.3);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  --blob-1: rgba(79, 140, 255, 0.16);
+  --blob-2: rgba(155, 107, 255, 0.12);
+  --blob-3: rgba(0, 196, 140, 0.09);
+
+  --radius: 24px;
+  --radius-sm: 16px;
+}
+
+html.light {
+  --bg: #F4F6FB;
+  --surface: #FFFFFF;
+  --surface-2: #EEF2FA;
+  --text: #0F172A;
+  --text-muted: #5B6478;
+  --primary: #2F6BEB;
+  --success: #00A676;
+  --gold: #D99A1E;
+  --warning: #E08A00;
+  --danger: #E5395A;
+
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.6);
+  --sidebar-bg: rgba(255, 255, 255, 0.82);
+  --toolbar-bg: rgba(244, 246, 251, 0.75);
+  --input-bg: rgba(15, 23, 42, 0.04);
+  --scrollbar: rgba(91, 100, 120, 0.3);
+  --shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
+  --blob-1: rgba(79, 140, 255, 0.14);
+  --blob-2: rgba(155, 107, 255, 0.08);
+  --blob-3: rgba(0, 196, 140, 0.08);
+}
+
+.accent-primary { --accent: var(--primary); }
+.accent-success { --accent: var(--success); }
+.accent-gold { --accent: var(--gold); }
+.accent-warning { --accent: var(--warning); }
+.accent-danger { --accent: var(--danger); }
+.accent-purple { --accent: var(--purple); }
+.accent-cyan { --accent: var(--cyan); }
+
+[class*='accent-'] {
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-glow: color-mix(in srgb, var(--accent) 22%, transparent);
+}
