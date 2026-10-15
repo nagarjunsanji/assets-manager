@@ -174,18 +174,18 @@ The production build is written to `dist/asset-manager/browser`, which `firebase
 - `no-cache` for `index.html`, `ngsw-worker.js` and `ngsw.json`, so PWA updates roll out right away
 - Security headers (HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`)
 
-### CI (GitHub Actions example)
+### Automatic deployment (GitHub Actions)
 
-```yaml
-- run: npm ci
-- run: npm run build
-- uses: FirebaseExtended/action-hosting-deploy@v0
-  with:
-    repoToken: ${{ secrets.GITHUB_TOKEN }}
-    firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-    projectId: nsanji-asset-manager
-    channelId: live
-```
+The workflow in `.github/workflows/firebase-deploy.yml` builds the app and deploys Firebase Hosting, Firestore rules, and Firestore indexes whenever code is pushed to `main`. It can also be started manually from the repository's **Actions → Deploy to Firebase → Run workflow** page.
+
+Before the first deployment:
+
+1. Create a Google Cloud service account for Firebase deployment and grant it the permissions required to deploy Firebase Hosting and Firestore rules/indexes in `nsanji-asset-manager`.
+2. Generate a JSON key for that service account.
+3. In the GitHub repository, open **Settings → Secrets and variables → Actions → New repository secret**, name it `FIREBASE_SERVICE_ACCOUNT`, and set its value to the complete JSON key. Do not commit the key to the repository.
+4. Push a commit to `main`, then check **Actions → Deploy to Firebase** for the build and deployment result.
+
+The deployment job runs only after the production build succeeds. Pull requests and pushes to other branches do not deploy to production.
 
 ---
 
