@@ -86,6 +86,7 @@ export const LENDING_STATUS = ['Active', 'Closed', 'Overdue', 'Defaulted'] as co
 
 export interface Lending extends Entity {
   borrowerName: string;
+  loanName?: string;
   mobile: string;
   address?: string;
   principal: number;
@@ -95,6 +96,7 @@ export interface Lending extends Entity {
   loanType: string;
   startDate: IsoDate;
   endDate: IsoDate;
+  paymentsMade?: number;
   collateral?: string;
   amountRecovered: number;
   status: (typeof LENDING_STATUS)[number];

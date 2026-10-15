@@ -12,7 +12,8 @@ import { periodKey, periodLabel } from '../../utilities/format';
 
 const FIELDS: FieldConfig[] = [
   { key: 'borrowerName', label: 'Borrower name', type: 'text', required: true, section: 'Borrower' },
-  { key: 'mobile', label: 'Mobile number', type: 'tel', required: true, pattern: '^[+0-9 ()-]{7,20}$' },
+  { key: 'loanName', label: 'Loan label / reference', type: 'text', hint: 'Useful when a borrower has multiple loans' },
+  { key: 'mobile', label: 'Mobile number', type: 'tel', pattern: '^[+0-9 ()-]{7,20}$' },
   { key: 'address', label: 'Address', type: 'text', span: 2 },
   { key: 'principal', label: 'Principal amount', type: 'currency', required: true, min: 1, section: 'Terms' },
   { key: 'interestRate', label: 'Interest rate (annual)', type: 'percent', required: true, min: 0, max: 100 },
@@ -21,6 +22,7 @@ const FIELDS: FieldConfig[] = [
   { key: 'loanType', label: 'Loan type', type: 'select', options: LENDING_TYPES, required: true, defaultValue: 'Personal' },
   { key: 'startDate', label: 'Start date', type: 'date', required: true },
   { key: 'endDate', label: 'End date', type: 'date', required: true },
+  { key: 'paymentsMade', label: 'Installments paid', type: 'number', min: 0, hint: 'Optional; leave blank to calculate from loan dates' },
   { key: 'collateral', label: 'Collateral', type: 'text', span: 2 },
   { key: 'amountRecovered', label: 'Amount recovered to date', type: 'currency', defaultValue: 0, section: 'Recovery' },
   { key: 'status', label: 'Status', type: 'select', options: LENDING_STATUS, defaultValue: 'Active' },
@@ -51,7 +53,7 @@ export class LendingPage {
   protected readonly repo = inject(LendingRepositoryService);
   protected readonly fields = FIELDS;
   protected readonly columns: ColumnConfig<Lending>[] = [
-    { key: 'borrowerName', label: 'Borrower', sub: (l) => `${l.mobile}${l.collateral ? ' · ' + l.collateral : ''}` },
+    { key: 'borrowerName', label: 'Borrower', sub: (l) => [l.loanName, l.mobile, l.collateral].filter(Boolean).join(' · ') },
     { key: 'loanType', label: 'Type' },
     { key: 'interestType', label: 'Method', type: 'chip' },
     { key: 'principal', label: 'Principal', type: 'currency' },

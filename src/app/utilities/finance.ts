@@ -110,7 +110,13 @@ export function fdMetrics(fd: FixedDeposit, asOf: Date = new Date()) {
 
 export function lendingMetrics(loan: Lending, asOf: Date = new Date()) {
   const termMonths = Math.max(1, monthsBetween(loan.startDate, new Date(loan.endDate)));
-  const elapsedMonths = Math.min(termMonths, monthsBetween(loan.startDate, asOf));
+  const elapsedFromStart = monthsBetween(loan.startDate, asOf);
+  const elapsedMonths = Math.min(
+    termMonths,
+    loan.paymentsMade === undefined
+      ? elapsedFromStart
+      : Math.max(0, loan.paymentsMade - monthsBetween(asOf, new Date())),
+  );
   const r = loan.interestRate / 100;
   let accrued = 0;
   let totalInterest = 0;
