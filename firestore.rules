@@ -11,8 +11,10 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return googleAccount()
-        && request.auth.token.email == 'nagarjun.sanji@gmail.com';
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'nagarjun.sanji@gmail.com';
     }
 
     function isApprovedUser(uid) {

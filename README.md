@@ -127,7 +127,7 @@ npm install
 4. **Authentication → Settings → Authorized domains**: ensure `nsanji-asset-manager.firebaseapp.com` and, for local development, `localhost` are authorized.
 5. Create a **Firestore database** in production mode.
 
-> The Firebase web config is not a secret. Data access is enforced by `firestore.rules`.
+> The Firebase web config is not a secret. Data access is enforced by `firestore.rules`. The super-admin is identified by the verified email `nagarjun.sanji@gmail.com`; the rules compare the email case-insensitively.
 
 ### 3. Run locally
 
