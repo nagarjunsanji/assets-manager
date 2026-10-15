@@ -206,6 +206,8 @@ export function livestockMetrics(l: Livestock) {
 
 export function premiumMonthly(premium: number, frequency: string): number {
   switch (frequency) {
+    case 'Single':
+      return 0;
     case 'Monthly':
       return premium;
     case 'Quarterly':

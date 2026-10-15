@@ -173,7 +173,7 @@ export interface OtherAsset extends Entity {
 
 // ---------- Protection ----------
 export const INSURANCE_CATEGORIES = ['Life', 'Health', 'Vehicle', 'Property', 'Livestock'] as const;
-export const PREMIUM_FREQUENCY = ['Yearly', 'Half-Yearly', 'Quarterly', 'Monthly'] as const;
+export const PREMIUM_FREQUENCY = ['Single', 'Yearly', 'Half-Yearly', 'Quarterly', 'Monthly'] as const;
 
 export interface Insurance extends Entity {
   policyNumber: string;
