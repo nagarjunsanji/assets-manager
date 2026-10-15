@@ -18,6 +18,7 @@ const FIELDS: FieldConfig[] = [
   { key: 'outstanding', label: 'Outstanding balance', type: 'currency', required: true },
   { key: 'emi', label: 'EMI', type: 'currency', defaultValue: 0, hint: '0 for credit cards' },
   { key: 'tenureMonths', label: 'Tenure (months)', type: 'number', defaultValue: 0 },
+  { key: 'paymentsMade', label: 'EMIs paid', type: 'number', min: 0, defaultValue: 0 },
   { key: 'startDate', label: 'Start date', type: 'date', required: true },
   { key: 'notes', label: 'Notes', type: 'textarea' },
 ];

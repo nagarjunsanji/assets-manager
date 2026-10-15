@@ -117,4 +117,5 @@ export class DashboardPage {
       // The service reports the failure to the user.
     }
   }
+
 }

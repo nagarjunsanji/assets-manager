@@ -195,6 +195,7 @@ export const VEHICLE_TYPES = ['Car', 'SUV', 'Two Wheeler', 'Tractor', 'Truck', '
 
 export interface Vehicle extends Entity {
   registrationNumber: string;
+  ownerName?: string;
   make: string;
   model: string;
   type: string;
@@ -218,6 +219,7 @@ export interface Liability extends Entity {
   emi: number;
   startDate: IsoDate;
   tenureMonths: number;
+  paymentsMade?: number;
 }
 
 // ---------- Goals ----------

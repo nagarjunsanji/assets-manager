@@ -11,6 +11,7 @@ import { appreciationPct, sum, yearsBetween } from '../../utilities/finance';
 
 const FIELDS: FieldConfig[] = [
   { key: 'registrationNumber', label: 'Registration number', type: 'text', required: true, pattern: '^[A-Za-z0-9 -]{4,15}$' },
+  { key: 'ownerName', label: 'Registered owner', type: 'text' },
   { key: 'type', label: 'Vehicle type', type: 'select', options: VEHICLE_TYPES, required: true, defaultValue: 'Car' },
   { key: 'make', label: 'Make', type: 'text', required: true },
   { key: 'model', label: 'Model', type: 'text', required: true },
@@ -44,7 +45,7 @@ export class VehiclesPage {
   protected readonly repo = inject(VehicleRepositoryService);
   protected readonly fields = FIELDS;
   protected readonly columns: ColumnConfig<Vehicle>[] = [
-    { key: 'registrationNumber', label: 'Registration', sub: (v) => `${v.make} ${v.model}` },
+    { key: 'registrationNumber', label: 'Registration', sub: (v) => [v.ownerName, `${v.make} ${v.model}`].filter(Boolean).join(' · ') },
     { key: 'type', label: 'Type', type: 'chip' },
     { key: 'year', label: 'Year' },
     { key: 'purchaseCost', label: 'Cost', type: 'currency' },

@@ -158,7 +158,7 @@ export function lendingMetrics(loan: Lending, asOf: Date = new Date()) {
 }
 
 export function liabilityMetrics(l: Liability, asOf: Date = new Date()) {
-  const elapsed = Math.min(l.tenureMonths || 0, monthsBetween(l.startDate, asOf));
+  const elapsed = Math.min(l.tenureMonths || 0, l.paymentsMade ?? monthsBetween(l.startDate, asOf));
   const paid = l.emi * elapsed;
   const principalRepaid = Math.max(0, l.principal - l.outstanding);
   const interestPaid = l.type === 'Credit Card' ? 0 : Math.max(0, paid - principalRepaid);
