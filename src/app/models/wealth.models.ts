@@ -186,6 +186,8 @@ export interface Insurance extends Entity {
   startDate?: IsoDate;
   renewalDate: IsoDate;
   nominee?: string;
+  /** One covered person per line, optionally including their relationship to the policyholder. */
+  insuredPeople?: string;
   insuredAsset?: string;
 }
 

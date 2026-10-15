@@ -21,8 +21,16 @@ const FIELDS: FieldConfig[] = [
   { key: 'premiumFrequency', label: 'Premium frequency', type: 'select', options: PREMIUM_FREQUENCY, defaultValue: 'Yearly' },
   { key: 'renewalDate', label: 'Renewal date', type: 'date', required: true },
   { key: 'startDate', label: 'Policy start date', type: 'date' },
+  {
+    key: 'insuredPeople',
+    label: 'People covered',
+    type: 'textarea',
+    section: 'People & assets covered',
+    placeholder: 'One person per line, e.g. Neeraja Sanji (spouse)',
+    hint: 'Add each covered person and their relationship to the policyholder. For family floaters, enter everyone covered.',
+  },
   { key: 'nominee', label: 'Nominee', type: 'text' },
-  { key: 'insuredAsset', label: 'Insured asset', type: 'text', hint: 'Vehicle, property or farm covered' },
+  { key: 'insuredAsset', label: 'Insured asset', type: 'text', hint: 'Vehicle, property, farm or other asset covered' },
   { key: 'notes', label: 'Notes', type: 'textarea' },
 ];
 
@@ -84,7 +92,11 @@ export class InsurancePage {
   protected readonly date = formatDate;
   protected readonly tone = renewalTone;
   protected readonly columns: ColumnConfig<Insurance>[] = [
-    { key: 'policyName', label: 'Policy', sub: (p) => `${p.provider} · ${p.policyNumber}` },
+    {
+      key: 'policyName',
+      label: 'Policy',
+      sub: (p) => [p.provider, p.policyNumber, p.insuredPeople?.replace(/\n/g, ', ')].filter(Boolean).join(' · '),
+    },
     { key: 'category', label: 'Category', type: 'chip' },
     { key: 'coverage', label: 'Coverage', type: 'currency' },
     { key: 'premium', label: 'Premium', type: 'currency', },
