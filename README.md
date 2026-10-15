@@ -13,7 +13,7 @@ A self-hosted, frontend-only **family office dashboard** for tracking a househol
 | State | Angular Signals + RxJS interop (`toSignal`/`toObservable`) |
 | Data | Cloud Firestore (with offline persistence), per-user subcollections |
 | Files | Small PDFs and images stored as Firestore documents |
-| Auth | Firebase Auth (Google, Microsoft, email/password) |
+| Auth | Firebase Authentication (Google sign-in, allowlisted account only) |
 | Hosting | Firebase Hosting + Angular service worker (PWA) |
 
 ---
@@ -28,7 +28,6 @@ A self-hosted, frontend-only **family office dashboard** for tracking a househol
 - **Wealth simulator**: best, expected and worst cases plus an inflation-adjusted projection.
 - **Layout**: collapsible sidebar, global search, notifications (insurance renewals, FD maturities, loan due dates, vaccinations), profile menu, and a dark/light theme switcher.
 - **PWA**: installable, with offline caching of the app shell and Firestore's offline cache.
-- **Demo workspace**: try the app without Firebase. Data is stored in `localStorage`.
 
 ---
 
@@ -50,8 +49,8 @@ asset-manager/
         ├── app.config.ts      # Providers (router, http, SW)
         ├── app.routes.ts      # Lazy-loaded feature routes
         ├── core/
-        │   ├── auth/          # AuthService (Google, Microsoft, email, demo)
-        │   ├── data/          # DataStore abstraction: Firestore and local demo store
+        │   ├── auth/          # Google-only AuthService with account allowlist
+        │   ├── data/          # Firestore-backed user data store
         │   ├── firebase/      # Lazy Firebase SDK initialisation
         │   ├── layout/        # Shell: sidebar, toolbar, search, notifications
         │   └── theme/         # ThemeService (dark/light)
@@ -124,11 +123,8 @@ npm install
 
 1. In the [Firebase console](https://console.firebase.google.com/), open **nsanji-asset-manager**, go to **Project settings → Your apps**, and add a **Web app**.
 2. Copy the config into `src/environments/environment.ts` (production) and `src/environments/environment.development.ts` (dev).
-3. **Authentication → Sign-in method**: enable
-   - **Google**
-   - **Microsoft**. Register an app in Microsoft Entra ID and add the redirect URI `https://nsanji-asset-manager.firebaseapp.com/__/auth/handler`. Then paste the client ID and secret into Firebase.
-   - **Email/Password**
-4. **Authentication → Settings → Authorized domains**: add your hosting domain (and `localhost` for dev).
+3. **Authentication → Sign-in method**: enable **Google** and disable all other providers. The verified Google account `nagarjun.sanji@gmail.com` is the app owner. Other verified Google accounts can request access; the owner must approve them in Firestore before they can use the app.
+4. **Authentication → Settings → Authorized domains**: ensure `nsanji-asset-manager.firebaseapp.com` and, for local development, `localhost` are authorized.
 5. Create a **Firestore database** in production mode.
 
 > The Firebase web config is not a secret. Data access is enforced by `firestore.rules`.
@@ -139,7 +135,7 @@ npm install
 npm start          # http://localhost:4200
 ```
 
-Sign in, or click **Explore demo workspace**. A Firebase account uses Firestore; demo mode stores data only in this browser. In Settings, choose **Test Firestore connection** to verify the signed-in account can reach the live database. Then click **Load sample data** on the dashboard or in Settings to create a realistic sample portfolio in your account: 3 properties, 3 agricultural lands, 2 farms, 6 livestock groups, 4 loans, 9 stocks, 6 mutual funds, 4 FDs, 13 other assets, 6 insurance policies, 3 vehicles, 5 liabilities, 5 goals and 24 months of net worth history. Loading samples replaces records in the affected asset collections for that signed-in account.
+Sign in with the Google account `nagarjun.sanji@gmail.com`. Other verified Google accounts can sign in to request access, but remain blocked from app data until approved. As super admin, review pending requests from the **Access approvals** panel on your dashboard and choose **Approve**. Until approval, the applicant sees an approval-pending message. The panel updates live from Firestore; no direct database edits or Cloud Functions are required. This manual flow does not send an email notification. In Settings, choose **Test Firestore connection** to verify the signed-in account can reach the live database. Then click **Load sample data** on the dashboard or in Settings to create a realistic sample portfolio in your account: 3 properties, 3 agricultural lands, 2 farms, 6 livestock groups, 4 loans, 9 stocks, 6 mutual funds, 4 FDs, 13 other assets, 6 insurance policies, 3 vehicles, 5 liabilities, 5 goals and 24 months of net worth history. Loading samples replaces records in the affected asset collections for that signed-in account.
 
 The document vault stores files directly in Firestore, so uploads are limited to 700 KB. Larger files must be kept outside the app and can be linked separately.
 
@@ -152,6 +148,12 @@ npm run emulators
 ---
 
 ## Deployment
+
+### Live application
+
+The production app is hosted at **[https://nsanji-asset-manager.firebaseapp.com](https://nsanji-asset-manager.firebaseapp.com)**. Dashboard route: [https://nsanji-asset-manager.firebaseapp.com/dashboard](https://nsanji-asset-manager.firebaseapp.com/dashboard).
+
+### Manual deployment
 
 ```bash
 # one-time
@@ -176,14 +178,22 @@ The production build is written to `dist/asset-manager/browser`, which `firebase
 
 ### Automatic deployment (GitHub Actions)
 
-The workflow in `.github/workflows/firebase-deploy.yml` builds the app and deploys Firebase Hosting, Firestore rules, and Firestore indexes whenever code is pushed to `main`. It can also be started manually from the repository's **Actions → Deploy to Firebase → Run workflow** page.
+The workflow in `.github/workflows/firebase-deploy.yml` builds the app and deploys Firebase Hosting, Firestore rules, and Firestore indexes to project `nsanji-asset-manager` whenever code is pushed to `main`. It can also be started manually from the repository's **Actions → Deploy to Firebase → Run workflow** page. After a successful run, the updated app is available at the live URL above.
 
-Before the first deployment:
+#### GitHub Actions setup
 
-1. Create a Google Cloud service account for Firebase deployment and grant it the permissions required to deploy Firebase Hosting and Firestore rules/indexes in `nsanji-asset-manager`.
-2. Generate a JSON key for that service account.
-3. In the GitHub repository, open **Settings → Secrets and variables → Actions → New repository secret**, name it `FIREBASE_SERVICE_ACCOUNT`, and set its value to the complete JSON key. Do not commit the key to the repository.
-4. Push a commit to `main`, then check **Actions → Deploy to Firebase** for the build and deployment result.
+The deployment workflow is configured and has successfully deployed the hosted app. To recreate or troubleshoot its setup:
+
+1. Create a dedicated Google Cloud service account for Firebase deployment in project `nsanji-asset-manager` and grant it:
+   - **Firebase Hosting Admin** (`roles/firebasehosting.admin`) for Hosting deployments.
+   - **Firebase Rules Admin** (`roles/firebaserules.admin`) for Firestore rules.
+   - **Cloud Datastore Index Admin** (`roles/datastore.indexAdmin`) for Firestore indexes.
+   - **Service Usage Consumer** (`roles/serviceusage.serviceUsageConsumer`) so Firebase CLI can check whether required Google APIs are enabled.
+2. Generate a JSON key for the service account.
+3. In the GitHub repository, go to **Settings → Secrets and variables → Actions → New repository secret**. Name it `FIREBASE_SERVICE_ACCOUNT` and use the complete JSON key as the value. Never commit the key to the repository.
+4. Push to `main` and check **Actions → Deploy to Firebase** for the build and deployment result.
+
+Required Google APIs must be enabled on the project. If a deployment fails with `Permission denied to get service ...` from `serviceusage.googleapis.com`, make sure the deployment service account has **Service Usage Consumer** on `nsanji-asset-manager`, then rerun the failed workflow. If an API is disabled, ask a project administrator to enable it. Do not grant broad Owner access to the deployment account.
 
 The deployment job runs only after the production build succeeds. Pull requests and pushes to other branches do not deploy to production.
 
@@ -212,7 +222,7 @@ The deployment job runs only after the production build succeeds. Pull requests 
 
 ## Security notes
 
-- Every Firestore path is scoped to `request.auth.uid`. All other paths are denied.
+- Every user Firestore path is scoped to `request.auth.uid` and requires an approved, verified Google account. Users can create their own pending access request but cannot approve themselves; only the owner account can change approval flags. All other paths are denied.
 - Document uploads are limited to PDFs and images under 700 KB in the app; Firestore rules limit embedded file data to fit safely under the 1 MiB per-document limit.
 - The post-login `returnUrl` is restricted to in-app relative paths, which blocks open redirects.
 - External document links use `rel="noopener noreferrer"`.

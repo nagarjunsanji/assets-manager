@@ -28,5 +28,4 @@ export interface AppUser {
   email: string;
   photoURL?: string | null;
   provider: string;
-  demo: boolean;
 }

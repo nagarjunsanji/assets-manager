@@ -31,6 +31,41 @@
     </div>
   </section>
 
+  @if (auth.isSuperAdmin()) {
+    <section class="glass-card approvals">
+      <header>
+        <div>
+          <h2>Access approvals</h2>
+          <p class="muted">Review Google accounts requesting access to the app.</p>
+        </div>
+        <span class="chip tone-info">{{ approvals.pendingRequests().length }} pending</span>
+      </header>
+      @if (approvals.error()) {
+        <p class="approval-error" role="alert">{{ approvals.error() }}</p>
+      }
+      @for (request of approvals.pendingRequests(); track request.id) {
+        <div class="approval-row">
+          <div class="approval-user">
+            <strong>{{ request.displayName || request.email }}</strong>
+            <small>{{ request.email }} · Requested {{ requestedDate(request.requestedAt) }}</small>
+          </div>
+          <button
+            mat-stroked-button
+            (click)="approveAccess(request.id)"
+            [disabled]="approvals.approvingUid() !== null"
+          >
+            <mat-icon>check</mat-icon>
+            {{ approvals.approvingUid() === request.id ? 'Approving…' : 'Approve' }}
+          </button>
+        </div>
+      } @empty {
+        @if (!approvals.error()) {
+          <p class="muted approval-empty">There are no pending access requests.</p>
+        }
+      }
+    </section>
+  }
+
   @if (p.loaded() && p.isEmpty()) {
     <section class="empty glass-card">
       <mat-icon>rocket_launch</mat-icon>

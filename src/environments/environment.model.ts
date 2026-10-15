@@ -10,6 +10,4 @@ export interface AppEnvironment {
     appId: string;
     measurementId?: string;
   };
-  /** Allows an offline, browser-only demo workspace backed by localStorage. */
-  enableDemoMode: boolean;
 }

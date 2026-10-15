@@ -5,7 +5,7 @@ export interface BatchItem {
   data: object;
 }
 
-/** Path-based persistence abstraction implemented by Firestore and the local demo store. */
+/** Path-based persistence abstraction implemented by Firestore. */
 export interface DataStore {
   watchCollection<T>(collectionPath: string): Observable<T[]>;
   watchDoc<T>(docPath: string): Observable<T | null>;

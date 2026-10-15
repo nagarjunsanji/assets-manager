@@ -74,10 +74,10 @@ import { ConfirmDialog, ConfirmDialogData } from '../../shared/dialogs/confirm-d
             <h3><mat-icon>storage</mat-icon> Data</h3>
             <p class="muted">
               Signed in as <strong>{{ auth.user()?.email }}</strong>
-              {{ auth.user()?.demo ? '(demo workspace stored in this browser)' : '(synced to Firestore)' }}
+              (synced to Firestore)
             </p>
             <div class="buttons">
-              <button mat-stroked-button (click)="checkConnection()" [disabled]="busy() || checkingConnection() || auth.user()?.demo">
+              <button mat-stroked-button (click)="checkConnection()" [disabled]="busy() || checkingConnection()">
                 <mat-icon>{{ connectionState() === 'connected' ? 'cloud_done' : 'cloud_sync' }}</mat-icon>
                 {{ checkingConnection() ? 'Checking Firestore…' : 'Test Firestore connection' }}
               </button>
@@ -86,14 +86,12 @@ import { ConfirmDialog, ConfirmDialogData } from '../../shared/dialogs/confirm-d
                   Firestore connection verified for this account.
                 } @else if (connectionState() === 'failed') {
                   Firestore connection failed. Check your network, sign-in and Firestore rules.
-                } @else if (auth.user()?.demo) {
-                  Demo data is stored only in this browser.
                 } @else {
                   Test the live Firestore connection for this account.
                 }
               </p>
               <button mat-stroked-button (click)="loadSample()" [disabled]="busy()">
-                <mat-icon>auto_awesome</mat-icon>{{ auth.user()?.demo ? 'Load demo sample data' : 'Load Firestore sample data' }}
+                <mat-icon>auto_awesome</mat-icon>Load Firestore sample data
               </button>
               <button mat-stroked-button (click)="exportData()"><mat-icon>download</mat-icon>Export JSON backup</button>
               <button mat-stroked-button class="danger" (click)="clearAll()" [disabled]="busy()"><mat-icon>delete_forever</mat-icon>Delete all records</button>
@@ -163,12 +161,10 @@ export class SettingsPage {
   }
 
   protected async loadSample(): Promise<void> {
-    const demo = this.auth.user()?.demo;
-    const destination = demo ? 'this browser demo' : 'your signed-in Firestore account';
-    if (!(await this.confirm('Load sample data?', `Existing records in each module in ${destination} will be replaced with the sample portfolio.`, 'Load'))) return;
+    if (!(await this.confirm('Load sample data?', 'Existing records in each module in your signed-in Firestore account will be replaced with the sample portfolio.', 'Load'))) return;
     await this.busyRun(
       () => this.seed.loadSampleData(),
-      demo ? 'Demo sample portfolio loaded' : 'Sample portfolio saved to Firestore',
+      'Sample portfolio saved to Firestore',
     );
     this.form.markAsPristine();
   }
@@ -180,7 +176,7 @@ export class SettingsPage {
 
   protected async checkConnection(): Promise<void> {
     const user = this.auth.user();
-    if (!user || user.demo) return;
+    if (!user) return;
 
     this.checkingConnection.set(true);
     this.connectionState.set('unknown');

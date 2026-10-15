@@ -87,10 +87,6 @@
 
       <span class="spacer"></span>
 
-      @if (user()?.demo) {
-        <span class="demo-pill" matTooltip="Data is stored only in this browser">Demo workspace</span>
-      }
-
       <button mat-icon-button (click)="theme.toggle()" [attr.aria-label]="'Switch to ' + (theme.mode() === 'dark' ? 'light' : 'dark') + ' theme'" matTooltip="Toggle theme">
         <mat-icon>{{ theme.mode() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
       </button>

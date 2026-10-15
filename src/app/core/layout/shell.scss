@@ -147,17 +147,6 @@
 
 .spacer { flex: 1; }
 
-.demo-pill {
-  white-space: nowrap;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
-}
-
 .profile-btn {
   height: 44px;
   border-radius: 14px;
@@ -219,6 +208,6 @@
 @media (max-width: 640px) {
   .toolbar { padding: 0 10px; gap: 4px; }
   .search { flex: 1; }
-  .profile-name, .demo-pill { display: none; }
+  .profile-name { display: none; }
   .main { padding: 18px 14px 40px; }
 }

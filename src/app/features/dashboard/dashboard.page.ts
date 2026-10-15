@@ -5,6 +5,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { AccessApprovalService } from '../../services/access-approval.service';
 import { NotificationService } from '../../services/notification.service';
 import { PortfolioService } from '../../services/portfolio.service';
 import { SeedDataService } from '../../services/seed-data.service';
@@ -26,7 +27,8 @@ import { formatDate, formatInr, periodLabel } from '../../utilities/format';
 export class DashboardPage {
   protected readonly p = inject(PortfolioService);
   protected readonly alerts = inject(NotificationService);
-  private readonly auth = inject(AuthService);
+  protected readonly auth = inject(AuthService);
+  protected readonly approvals = inject(AccessApprovalService);
   private readonly seed = inject(SeedDataService);
   private readonly toast = inject(ToastService);
 
@@ -34,6 +36,8 @@ export class DashboardPage {
   protected readonly seeding = signal(false);
   protected readonly fmt = formatInr;
   protected readonly fmtDate = formatDate;
+  protected readonly requestedDate = (timestamp: number) =>
+    new Date(timestamp).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 
   protected readonly greeting = computed(() => {
     const h = new Date().getHours();
@@ -118,6 +122,16 @@ export class DashboardPage {
       this.toast.error(err instanceof Error ? err.message : 'Failed to load sample data');
     } finally {
       this.seeding.set(false);
+    }
+  }
+
+  protected async approveAccess(requestId: string): Promise<void> {
+    const request = this.approvals.pendingRequests().find((item) => item.id === requestId);
+    if (!request) return;
+    try {
+      await this.approvals.approve(request);
+    } catch {
+      // The service reports the failure to the user.
     }
   }
 }

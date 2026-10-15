@@ -4,7 +4,7 @@ import { Auth, getAuth } from 'firebase/auth';
 import { Firestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { environment } from '../../../environments/environment';
 
-/** Lazily initialises Firebase SDK instances so demo mode never touches the network. */
+/** Lazily initialises Firebase SDK instances. */
 @Injectable({ providedIn: 'root' })
 export class FirebaseService {
   readonly configured = !!environment.firebase.apiKey && !environment.firebase.apiKey.startsWith('YOUR_');

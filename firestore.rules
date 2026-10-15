@@ -4,12 +4,27 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() {
-      return request.auth != null;
+    function googleAccount() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    function isAdmin() {
+      return googleAccount()
+        && request.auth.token.email == 'nagarjun.sanji@gmail.com';
+    }
+
+    function isApprovedUser(uid) {
+      return isAdmin()
+        || (googleAccount()
+          && request.auth.uid == uid
+          && exists(/databases/$(database)/documents/accessRequests/$(uid))
+          && get(/databases/$(database)/documents/accessRequests/$(uid)).data.approved == true);
     }
 
     function isOwner(uid) {
-      return signedIn() && request.auth.uid == uid;
+      return isApprovedUser(uid) && request.auth.uid == uid;
     }
 
     function allowedCollection(name) {
@@ -27,6 +42,18 @@ service cloud.firestore {
           || !('contentData' in request.resource.data)
           || (request.resource.data.contentData is string
             && request.resource.data.contentData.size() <= 960000));
+    }
+
+    match /accessRequests/{uid} {
+      allow get: if isAdmin() || (googleAccount() && request.auth.uid == uid);
+      allow list: if isAdmin();
+      allow create: if googleAccount()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'displayName', 'approved', 'requestedAt'])
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.approved == false
+        && request.resource.data.requestedAt is number;
+      allow update, delete: if isAdmin();
     }
 
     // User profile document (users collection)

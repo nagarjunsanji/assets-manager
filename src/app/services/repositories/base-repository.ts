@@ -8,7 +8,7 @@ import { ToastService } from '../toast.service';
 
 /**
  * Generic signal-based repository over users/{uid}/{collection}.
- * Works transparently with Firestore or the local demo store.
+ * Reads and writes the signed-in user's Firestore collection.
  */
 export abstract class BaseRepository<T extends Entity> {
   protected readonly auth = inject(AuthService);
