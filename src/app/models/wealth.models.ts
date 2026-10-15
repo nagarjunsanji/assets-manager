@@ -4,7 +4,7 @@ import { Entity } from './entity.model';
 export type IsoDate = string;
 
 // ---------- Real assets ----------
-export const PROPERTY_TYPES = ['Residential', 'Commercial', 'Plot', 'Industrial'] as const;
+export const PROPERTY_TYPES = ['Residential', 'Commercial', 'Mixed Use', 'Plot', 'Industrial'] as const;
 export type PropertyType = (typeof PROPERTY_TYPES)[number];
 
 export interface Property extends Entity {
