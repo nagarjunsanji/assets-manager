@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -8,8 +8,6 @@ import { AuthService } from '../../core/auth/auth.service';
 import { AccessApprovalService } from '../../services/access-approval.service';
 import { NotificationService } from '../../services/notification.service';
 import { PortfolioService } from '../../services/portfolio.service';
-import { SeedDataService } from '../../services/seed-data.service';
-import { ToastService } from '../../services/toast.service';
 import { ChartCard } from '../../shared/components/chart-card';
 import { CountUp } from '../../shared/components/count-up';
 import { StatCard } from '../../shared/components/stat-card';
@@ -29,11 +27,8 @@ export class DashboardPage {
   protected readonly alerts = inject(NotificationService);
   protected readonly auth = inject(AuthService);
   protected readonly approvals = inject(AccessApprovalService);
-  private readonly seed = inject(SeedDataService);
-  private readonly toast = inject(ToastService);
 
   protected readonly s = this.p.summary;
-  protected readonly seeding = signal(false);
   protected readonly fmt = formatInr;
   protected readonly fmtDate = formatDate;
   protected readonly requestedDate = (timestamp: number) =>
@@ -112,18 +107,6 @@ export class DashboardPage {
       ...d.assets.map((x) => ({ name: x.name, kind: x.category, icon: 'account_balance_wallet', value: x.currentValue, change: pct(x.currentValue - x.investedValue, x.investedValue) })),
     ].sort((a, b) => b.value - a.value).slice(0, 6);
   });
-
-  protected async loadSample(): Promise<void> {
-    this.seeding.set(true);
-    try {
-      await this.seed.loadSampleData();
-      this.toast.success('Sample portfolio loaded');
-    } catch (err) {
-      this.toast.error(err instanceof Error ? err.message : 'Failed to load sample data');
-    } finally {
-      this.seeding.set(false);
-    }
-  }
 
   protected async approveAccess(requestId: string): Promise<void> {
     const request = this.approvals.pendingRequests().find((item) => item.id === requestId);

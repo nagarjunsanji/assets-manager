@@ -64,11 +64,11 @@ asset-manager/
         │   ├── search.service.ts         # Global search index
         │   ├── document-vault.service.ts
         │   ├── profile.service.ts
-        │   └── seed-data.service.ts
+        │   └── portfolio-backup.service.ts
         ├── shared/
         │   ├── components/    # EntityPage, DataTable, ChartCard, StatCard, CountUp, PageHeader
         │   └── dialogs/       # Generic EntityFormDialog, ConfirmDialog
-        ├── utilities/         # Finance math (XIRR, CAGR, EMI, FD, lending), portfolio engine, seed data
+        ├── utilities/         # Finance math (XIRR, CAGR, EMI, FD, lending), portfolio engine
         └── features/          # One folder per module (lazy-loaded pages)
 ```
 
@@ -135,7 +135,7 @@ npm install
 npm start          # http://localhost:4200
 ```
 
-Sign in with the Google account `nagarjun.sanji@gmail.com`. Other verified Google accounts can sign in to request access, but remain blocked from app data until approved. As super admin, review pending requests from the **Access approvals** panel on your dashboard and choose **Approve**. Until approval, the applicant sees an approval-pending message. The panel updates live from Firestore; no direct database edits or Cloud Functions are required. This manual flow does not send an email notification. In Settings, choose **Test Firestore connection** to verify the signed-in account can reach the live database. Then click **Load sample data** on the dashboard or in Settings to create a realistic sample portfolio in your account: 3 properties, 3 agricultural lands, 2 farms, 6 livestock groups, 4 loans, 9 stocks, 6 mutual funds, 4 FDs, 13 other assets, 6 insurance policies, 3 vehicles, 5 liabilities, 5 goals and 24 months of net worth history. Loading samples replaces records in the affected asset collections for that signed-in account.
+Sign in with the Google account `nagarjun.sanji@gmail.com`. Other verified Google accounts can sign in to request access, but remain blocked from app data until approved. As super admin, review pending requests from the **Access approvals** panel on your dashboard and choose **Approve**. Until approval, the applicant sees an approval-pending message. The panel updates live from Firestore; no direct database edits or Cloud Functions are required. This manual flow does not send an email notification. In Settings, choose **Test Firestore connection** to verify the signed-in account can reach the live database, or **Export JSON backup** to download a local backup. Production UI does not include sample-data loading or bulk record deletion.
 
 The document vault stores files directly in Firestore, so uploads are limited to 700 KB. Larger files must be kept outside the app and can be linked separately.
 

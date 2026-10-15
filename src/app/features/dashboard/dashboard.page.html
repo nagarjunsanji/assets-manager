@@ -66,20 +66,6 @@
     </section>
   }
 
-  @if (p.loaded() && p.isEmpty()) {
-    <section class="empty glass-card">
-      <mat-icon>rocket_launch</mat-icon>
-      <div>
-        <h3>Start building your wealth map</h3>
-        <p class="muted">Add assets from the sidebar, or load a realistic sample portfolio to explore every dashboard.</p>
-      </div>
-      <button mat-flat-button (click)="loadSample()" [disabled]="seeding()">
-        <mat-icon>auto_awesome</mat-icon>
-        {{ seeding() ? 'Loading…' : 'Load sample data' }}
-      </button>
-    </section>
-  }
-
   <div class="kpi-grid stagger">
     <app-stat-card label="Total Net Worth" [value]="s().netWorth" icon="account_balance" accent="primary" [delta]="p.netWorthChange()" />
     <app-stat-card label="Total Assets" [value]="s().totalAssets" icon="trending_up" accent="success" [hint]="s().assetClasses.length + ' asset classes'" />

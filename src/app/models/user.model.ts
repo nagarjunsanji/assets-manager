@@ -4,6 +4,8 @@ export interface UserProfile {
   currency: 'INR';
   monthlyIncome: number;
   monthlyExpenses: number;
+  spouseName?: string;
+  childrenNames?: string[];
   /** Safe withdrawal rate % used for the FIRE target */
   withdrawalRate: number;
   expectedReturn: number;

@@ -1,20 +1,17 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { FirestoreDataStore } from '../../core/data/firestore-data-store';
 import { ThemeService } from '../../core/theme/theme.service';
+import { PortfolioBackupService } from '../../services/portfolio-backup.service';
 import { ProfileService } from '../../services/profile.service';
-import { SeedDataService } from '../../services/seed-data.service';
 import { ToastService } from '../../services/toast.service';
 import { PageHeader } from '../../shared/components/page-header';
-import { ConfirmDialog, ConfirmDialogData } from '../../shared/dialogs/confirm-dialog';
 
 @Component({
   selector: 'app-settings-page',
@@ -22,7 +19,7 @@ import { ConfirmDialog, ConfirmDialogData } from '../../shared/dialogs/confirm-d
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
-      <app-page-header title="Settings" subtitle="Profile, financial assumptions and data management" icon="tune" />
+      <app-page-header title="Settings" subtitle="Profile, financial assumptions and data backup" icon="tune" />
 
       <div class="grid">
         <section class="glass-card card">
@@ -32,6 +29,15 @@ import { ConfirmDialog, ConfirmDialogData } from '../../shared/dialogs/confirm-d
             <mat-form-field class="span-2">
               <mat-label>Display name</mat-label>
               <input matInput formControlName="displayName" maxlength="80" />
+            </mat-form-field>
+            <mat-form-field class="span-2">
+              <mat-label>Spouse name</mat-label>
+              <input matInput formControlName="spouseName" maxlength="100" />
+            </mat-form-field>
+            <mat-form-field class="span-2">
+              <mat-label>Children</mat-label>
+              <textarea matInput rows="2" formControlName="childrenNames" placeholder="One name per line"></textarea>
+              <mat-hint>Enter one child’s name per line.</mat-hint>
             </mat-form-field>
             <mat-form-field>
               <mat-label>Monthly active income</mat-label>
@@ -77,7 +83,7 @@ import { ConfirmDialog, ConfirmDialogData } from '../../shared/dialogs/confirm-d
               (synced to Firestore)
             </p>
             <div class="buttons">
-              <button mat-stroked-button (click)="checkConnection()" [disabled]="busy() || checkingConnection()">
+              <button mat-stroked-button (click)="checkConnection()" [disabled]="checkingConnection()">
                 <mat-icon>{{ connectionState() === 'connected' ? 'cloud_done' : 'cloud_sync' }}</mat-icon>
                 {{ checkingConnection() ? 'Checking Firestore…' : 'Test Firestore connection' }}
               </button>
@@ -90,11 +96,7 @@ import { ConfirmDialog, ConfirmDialogData } from '../../shared/dialogs/confirm-d
                   Test the live Firestore connection for this account.
                 }
               </p>
-              <button mat-stroked-button (click)="loadSample()" [disabled]="busy()">
-                <mat-icon>auto_awesome</mat-icon>Load Firestore sample data
-              </button>
               <button mat-stroked-button (click)="exportData()"><mat-icon>download</mat-icon>Export JSON backup</button>
-              <button mat-stroked-button class="danger" (click)="clearAll()" [disabled]="busy()"><mat-icon>delete_forever</mat-icon>Delete all records</button>
             </div>
           </section>
         </div>
@@ -115,7 +117,6 @@ import { ConfirmDialog, ConfirmDialogData } from '../../shared/dialogs/confirm-d
     .connection { margin: 0; font-size: 13px; color: var(--text-muted); }
     .connection.connected { color: var(--success, #00c48c); }
     .connection.failed { color: var(--danger); }
-    .danger { color: var(--danger) !important; border-color: color-mix(in srgb, var(--danger) 40%, transparent) !important; }
     @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
     @media (max-width: 560px) { form { grid-template-columns: 1fr; } }
   `,
@@ -124,16 +125,16 @@ export class SettingsPage {
   protected readonly auth = inject(AuthService);
   protected readonly theme = inject(ThemeService);
   private readonly profile = inject(ProfileService);
-  private readonly seed = inject(SeedDataService);
+  private readonly backup = inject(PortfolioBackupService);
   private readonly firestore = inject(FirestoreDataStore);
   private readonly toast = inject(ToastService);
-  private readonly dialog = inject(MatDialog);
-  protected readonly busy = signal(false);
   protected readonly checkingConnection = signal(false);
   protected readonly connectionState = signal<'unknown' | 'connected' | 'failed'>('unknown');
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
     displayName: ['', [Validators.maxLength(80)]],
+    spouseName: ['', [Validators.maxLength(100)]],
+    childrenNames: [''],
     monthlyIncome: [0, [Validators.required, Validators.min(0)]],
     monthlyExpenses: [0, [Validators.required, Validators.min(0)]],
     withdrawalRate: [4, [Validators.required, Validators.min(1), Validators.max(10)]],
@@ -145,33 +146,26 @@ export class SettingsPage {
     effect(() => {
       const p = this.profile.profile();
       if (this.form.pristine) {
-        this.form.patchValue(p, { emitEvent: false });
+        this.form.patchValue({
+          ...p,
+          childrenNames: p.childrenNames?.join('\n') ?? '',
+        }, { emitEvent: false });
       }
     });
   }
 
   protected async save(): Promise<void> {
     try {
-      await this.profile.save(this.form.getRawValue());
+      const { childrenNames, ...profileFields } = this.form.getRawValue();
+      await this.profile.save({
+        ...profileFields,
+        childrenNames: childrenNames.split(/\r?\n/).map((name) => name.trim()).filter(Boolean),
+      });
       this.form.markAsPristine();
       this.toast.success('Settings saved');
     } catch (err) {
       this.toast.error(err instanceof Error ? err.message : 'Save failed');
     }
-  }
-
-  protected async loadSample(): Promise<void> {
-    if (!(await this.confirm('Load sample data?', 'Existing records in each module in your signed-in Firestore account will be replaced with the sample portfolio.', 'Load'))) return;
-    await this.busyRun(
-      () => this.seed.loadSampleData(),
-      'Sample portfolio saved to Firestore',
-    );
-    this.form.markAsPristine();
-  }
-
-  protected async clearAll(): Promise<void> {
-    if (!(await this.confirm('Delete all records?', 'Every asset, liability, goal and history snapshot will be permanently deleted.', 'Delete all', true))) return;
-    await this.busyRun(() => this.seed.clearAll(), 'All records deleted');
   }
 
   protected async checkConnection(): Promise<void> {
@@ -193,7 +187,7 @@ export class SettingsPage {
   }
 
   protected exportData(): void {
-    const blob = new Blob([this.seed.exportJson()], { type: 'application/json' });
+    const blob = new Blob([this.backup.exportJson()], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -202,21 +196,4 @@ export class SettingsPage {
     URL.revokeObjectURL(url);
   }
 
-  private confirm(title: string, message: string, confirmText: string, danger = false): Promise<boolean | undefined> {
-    return firstValueFrom(
-      this.dialog.open<ConfirmDialog, ConfirmDialogData, boolean>(ConfirmDialog, { data: { title, message, confirmText, danger }, width: '440px' }).afterClosed(),
-    );
-  }
-
-  private async busyRun(action: () => Promise<void>, success: string): Promise<void> {
-    this.busy.set(true);
-    try {
-      await action();
-      this.toast.success(success);
-    } catch (err) {
-      this.toast.error(err instanceof Error ? err.message : 'Operation failed');
-    } finally {
-      this.busy.set(false);
-    }
-  }
 }
