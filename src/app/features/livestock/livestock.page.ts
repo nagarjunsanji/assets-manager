@@ -13,7 +13,9 @@ import { FieldConfig } from '../../shared/dialogs/entity-form-dialog';
 import { barChart, donutChart } from '../../utilities/chart-builders';
 import { appreciationPct, daysUntil, livestockMetrics, pct, sum } from '../../utilities/finance';
 import { formatInr } from '../../utilities/format';
-import { buildLivestockTree, livestockAgeLabel } from '../../utilities/livestock-tree';
+import {
+  buildLivestockTree, livestockAgeLabel, livestockStageInfo, recordedOffspringCount,
+} from '../../utilities/livestock-tree';
 
 @Component({
   selector: 'app-livestock-page',
@@ -37,10 +39,26 @@ import { buildLivestockTree, livestockAgeLabel } from '../../utilities/livestock
         <header class="tree-header">
           <div>
             <h2 id="herd-tree-title">Herd Family Tree</h2>
-            <p>Lineage is connected using each animal's Mother record. Hover or focus a node for age and performance; select it for full details.</p>
+            <p>Lineage uses linked mother records. Node colors are age-band cues, not health or lifespan assessments. Hover or focus for performance and recorded offspring; select for full details.</p>
           </div>
           <span class="tree-count">{{ repo.count() }} records</span>
         </header>
+        <div class="stage-legend" aria-label="Life stage color legend">
+          <span><i class="stage-dot newborn"></i>Newborn · under 3 months</span>
+          <span><i class="stage-dot growing"></i>Growing</span>
+          <span><i class="stage-dot productive"></i>Mature</span>
+          <span><i class="stage-dot mid-life"></i>Mid-age</span>
+          <span><i class="stage-dot senior"></i>Senior</span>
+          <span><i class="stage-dot deceased"></i>Deceased</span>
+          <span><i class="stage-dot unknown"></i>Age unknown</span>
+        </div>
+        <p class="stage-note">
+          Gir reference: first calving averaged 1,534 days (~4.2 years) and the inter-calving interval averaged 423 days in a breed survey.
+          The first-calving marker is used only when breed is entered as Gir. Other color thresholds are approximate visual management bands, not a lifespan or health prediction.
+          <a href="https://doi.org/10.1017/S1014233900001607" target="_blank" rel="noopener noreferrer">Breed study</a>
+          · <a href="https://doi.org/10.48165/ijapm.2023.37.3.11" target="_blank" rel="noopener noreferrer">Gir calf growth study</a>.
+          Goat age bands are broad visual categories, not breed-specific milestones.
+        </p>
         @if (familyTree().length) {
           <div class="tree-scroll">
             <div class="tree-canvas">
@@ -55,17 +73,30 @@ import { buildLivestockTree, livestockAgeLabel } from '../../utilities/livestock
         <div class="tree-level" [class.tree-root]="nodes === familyTree()">
           @for (node of nodes; track node.animal.id) {
             <div class="tree-branch" [class.tree-last]="$last && nodes.length > 1">
-              <button type="button" class="animal-node" (click)="showDetails(node.animal)"
+              <button type="button" class="animal-node"
+                [class.stage-newborn]="lifeStage(node.animal).stage === 'newborn'"
+                [class.stage-growing]="lifeStage(node.animal).stage === 'growing'"
+                [class.stage-productive]="lifeStage(node.animal).stage === 'productive'"
+                [class.stage-mid-life]="lifeStage(node.animal).stage === 'mid-life'"
+                [class.stage-senior]="lifeStage(node.animal).stage === 'senior'"
+                [class.stage-deceased]="lifeStage(node.animal).stage === 'deceased'"
+                [class.stage-unknown]="lifeStage(node.animal).stage === 'unknown'"
+                (click)="showDetails(node.animal)"
                 [attr.aria-label]="nodeLabel(node.animal)">
                 <span class="node-icon"><mat-icon>pets</mat-icon></span>
                 <span class="node-heading">
                   <strong>{{ node.animal.tagNumber ? '#' + node.animal.tagNumber : node.animal.breed }}</strong>
-                  <small>{{ node.animal.animalType }} · {{ node.animal.gender || 'Gender not set' }}</small>
+                  <small>{{ node.animal.animalType }} · {{ node.animal.gender || 'Gender not set' }} · {{ lifeStage(node.animal).label }}</small>
                 </span>
                 <span class="node-tooltip" role="tooltip">
                   <strong>{{ node.animal.tagNumber ? '#' + node.animal.tagNumber + ' · ' : '' }}{{ node.animal.breed }} {{ node.animal.animalType }}</strong>
                   <span>Age: {{ ageLabel(node.animal) }}</span>
+                  <span>Life stage: {{ lifeStage(node.animal).label }}</span>
+                  <span>Status: {{ node.animal.lifeStatus || 'Alive' }}{{ node.animal.deathDate ? ' · ' + node.animal.deathDate : '' }}</span>
                   <span>Count: {{ node.animal.count }}</span>
+                  @if (node.animal.gender === 'Female') {
+                    <span>Recorded offspring linked: {{ offspringCount(node.animal) }}</span>
+                  }
                   <span>Current value: {{ fmt(node.animal.currentValue) }}</span>
                   <span>Milk: {{ node.animal.milkLitresPerDay || 0 }} L/day</span>
                   <span>Est. monthly revenue: {{ fmt(metrics(node.animal).monthlyRevenue) }}</span>
@@ -90,6 +121,17 @@ import { buildLivestockTree, livestockAgeLabel } from '../../utilities/livestock
     .tree-header h2 { margin: 0; font-size: 18px; }
     .tree-header p { margin: 6px 0 0; color: var(--text-muted); font-size: 13px; }
     .tree-count { flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--glass-border); border-radius: 999px; color: var(--text-muted); font-size: 12px; }
+    .stage-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 8px; color: var(--text-muted); font-size: 11px; }
+    .stage-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .stage-dot { width: 11px; height: 11px; border: 1px solid rgb(60 70 90 / 30%); border-radius: 50%; }
+    .stage-dot.newborn { background: #fff; }
+    .stage-dot.growing, .stage-dot.productive { background: #69c68b; }
+    .stage-dot.mid-life { background: #f4a340; }
+    .stage-dot.senior { background: #e76868; }
+    .stage-dot.deceased { background: #89909c; }
+    .stage-dot.unknown { background: #c9ced6; }
+    .stage-note { margin: 0 0 10px; color: var(--text-muted); font-size: 11px; line-height: 1.55; }
+    .stage-note a { color: var(--primary); }
     .tree-scroll { overflow: auto; padding: 12px 12px 26px; }
     .tree-canvas { display: flex; justify-content: center; min-width: max-content; padding: 4px 12px 14px; perspective: 1100px; }
     .tree-level { position: relative; display: flex; align-items: flex-start; justify-content: center; gap: 20px; }
@@ -101,6 +143,12 @@ import { buildLivestockTree, livestockAgeLabel } from '../../utilities/livestock
     .tree-children > .tree-level > .tree-branch:first-child::after { left: 50%; }
     .tree-children > .tree-level > .tree-branch:last-child::after { right: 50%; }
     .animal-node { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; width: 190px; min-height: 74px; padding: 12px; border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--glass-border)); border-radius: 18px; background: linear-gradient(145deg, color-mix(in srgb, var(--surface) 92%, white), color-mix(in srgb, var(--primary) 10%, var(--surface))); box-shadow: 0 10px 20px rgb(20 30 60 / 12%), inset 0 1px 0 rgb(255 255 255 / 55%); color: var(--text); text-align: left; cursor: pointer; transform: rotateX(2deg); transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease; }
+    .animal-node.stage-newborn { border-color: #cfd4dc; background: linear-gradient(145deg, #fff, #edf0f4); color: #273142; }
+    .animal-node.stage-growing, .animal-node.stage-productive { border-color: #45a96b; background: linear-gradient(145deg, #d8f5df, #a8e5b8); color: #143b22; }
+    .animal-node.stage-mid-life { border-color: #d77a18; background: linear-gradient(145deg, #fff0d6, #f8c878); color: #4a2b05; }
+    .animal-node.stage-senior { border-color: #c34040; background: linear-gradient(145deg, #ffe1e1, #f2a4a4); color: #4e1717; }
+    .animal-node.stage-deceased { border-color: #737b87; background: linear-gradient(145deg, #e0e3e8, #aeb4be); color: #292e36; filter: saturate(.3); }
+    .animal-node.stage-unknown { border-color: #9299a4; background: linear-gradient(145deg, #eef0f3, #d2d6dc); color: #303641; }
     .animal-node:hover, .animal-node:focus-visible { z-index: 5; border-color: var(--primary); outline: none; box-shadow: 0 18px 28px rgb(20 30 60 / 24%), 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent); transform: translateY(-5px) rotateX(0deg) scale(1.03); }
     .node-icon { display: grid; flex: 0 0 38px; width: 38px; height: 38px; place-items: center; border-radius: 13px; background: color-mix(in srgb, var(--primary) 16%, var(--surface)); color: var(--primary); }
     .node-heading { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
@@ -125,11 +173,20 @@ export class LivestockPage {
 
   protected readonly fields = computed<FieldConfig[]>(() => [
     { key: 'farmName', label: 'Farm name', type: 'text', section: 'Herd', placeholder: 'e.g. Hebbevu Farms' },
-    { key: 'animalType', label: 'Animal type', type: 'select', options: ANIMAL_TYPES, required: true, defaultValue: 'Cow' },
-    { key: 'breed', label: 'Breed', type: 'text', required: true },
+    {
+      key: 'animalType', label: 'Animal type', type: 'select',
+      options: [...new Set([...ANIMAL_TYPES, ...this.repo.items().map((animal) => animal.animalType)])],
+      required: true, defaultValue: 'Cow',
+    },
+    { key: 'breed', label: 'Breed', type: 'text', required: true, hint: 'For Gir cattle, enter Gir as the breed for the Gir age reference.' },
     { key: 'tagNumber', label: 'Cattle / tag number', type: 'text', hint: 'Leave blank until a tag number is assigned' },
     { key: 'gender', label: 'Gender', type: 'select', options: ['Female', 'Male'] },
     { key: 'birthDate', label: 'Birth date', type: 'date' },
+    { key: 'lifeStatus', label: 'Life status', type: 'select', options: ['Alive', 'Deceased'], defaultValue: 'Alive' },
+    {
+      key: 'deathDate', label: 'Date of death', type: 'date',
+      visibleWhen: (values) => values['lifeStatus'] === 'Deceased',
+    },
     {
       key: 'motherId', label: 'Mother', type: 'select',
       options: this.repo.items().filter((l) => l.gender === 'Female').map((l) => ({
@@ -176,6 +233,7 @@ export class LivestockPage {
       ].filter(Boolean).join(' · '),
     },
     { key: 'animalType', label: 'Type', type: 'chip' },
+    { key: 'lifeStatus', label: 'Life status', type: 'chip', value: (animal) => animal.lifeStatus || 'Alive', chipTone: (animal) => animal.lifeStatus === 'Deceased' ? 'neutral' : 'success' },
     { key: 'count', label: 'Count', type: 'number' },
     { key: 'currentValue', label: 'Value', type: 'currency' },
     { key: 'growth', label: 'Value Growth', type: 'pnl-pct', value: (l) => appreciationPct(l.purchaseValue, l.currentValue) },
@@ -208,9 +266,17 @@ export class LivestockPage {
     return livestockAgeLabel(animal);
   }
 
+  protected lifeStage(animal: Livestock) {
+    return livestockStageInfo(animal);
+  }
+
+  protected offspringCount(animal: Livestock): number {
+    return recordedOffspringCount(this.repo.items(), animal.id);
+  }
+
   protected nodeLabel(animal: Livestock): string {
     const metrics = livestockMetrics(animal);
-    return `${animal.tagNumber ? `Tag ${animal.tagNumber}, ` : ''}${animal.breed} ${animal.animalType}, age ${this.ageLabel(animal)}, current value ${formatInr(animal.currentValue)}, estimated monthly profit ${formatInr(metrics.monthlyProfit)}`;
+    return `${animal.tagNumber ? `Tag ${animal.tagNumber}, ` : ''}${animal.breed} ${animal.animalType}, ${animal.lifeStatus || 'Alive'}, ${this.lifeStage(animal).label}, age ${this.ageLabel(animal)}, recorded linked offspring ${this.offspringCount(animal)}, current value ${formatInr(animal.currentValue)}, estimated monthly profit ${formatInr(metrics.monthlyProfit)}`;
   }
 
   protected readonly kpi = computed(() => {

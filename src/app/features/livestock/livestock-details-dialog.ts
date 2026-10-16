@@ -6,6 +6,7 @@ import { Livestock } from '../../models/wealth.models';
 import { LivestockRepositoryService } from '../../services/repositories/repositories';
 import { livestockMetrics } from '../../utilities/finance';
 import { formatInr } from '../../utilities/format';
+import { livestockAgeLabel, livestockStageInfo, recordedOffspringCount } from '../../utilities/livestock-tree';
 
 export interface LivestockDetailsDialogData {
   livestock: Livestock;
@@ -30,8 +31,16 @@ export interface LivestockDetailsDialogData {
         <article><small>Tag number</small><strong>{{ data.livestock.tagNumber || 'Not assigned' }}</strong></article>
         <article><small>Gender</small><strong>{{ data.livestock.gender || 'Not specified' }}</strong></article>
         <article><small>Birth date</small><strong>{{ data.livestock.birthDate ? formatDate(data.livestock.birthDate) : '—' }}</strong></article>
+        <article><small>Age / stage</small><strong>{{ ageLabel() }} · {{ lifeStage().label }}</strong></article>
+        <article><small>Life status</small><strong>{{ data.livestock.lifeStatus || 'Alive' }}</strong></article>
+        @if (data.livestock.deathDate) {
+          <article><small>Date of death</small><strong>{{ formatDate(data.livestock.deathDate) }}</strong></article>
+        }
         @if (mother()) {
           <article><small>Mother</small><strong>{{ motherLabel() }}</strong></article>
+        }
+        @if (data.livestock.gender === 'Female') {
+          <article><small>Linked offspring records</small><strong>{{ offspringCount() }} · may exclude unlinked historical births</strong></article>
         }
         @if (data.livestock.pregnancyMonths) {
           <article><small>Pregnancy</small><strong>{{ data.livestock.pregnancyMonths }} months</strong></article>
@@ -115,6 +124,10 @@ export class LivestockDetailsDialog {
   private readonly livestockRepo = inject(LivestockRepositoryService);
   protected readonly fmt = formatInr;
   protected readonly metrics = computed(() => livestockMetrics(this.data.livestock));
+  protected readonly lifeStage = computed(() => livestockStageInfo(this.data.livestock));
+  protected readonly ageLabel = () => livestockAgeLabel(this.data.livestock);
+  protected readonly offspringCount = () =>
+    recordedOffspringCount(this.livestockRepo.items(), this.data.livestock.id);
   protected readonly mother = computed(() => this.livestockRepo.getById(this.data.livestock.motherId));
   protected readonly motherLabel = computed(() => {
     const value = this.mother();

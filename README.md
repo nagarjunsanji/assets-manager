@@ -29,6 +29,7 @@ A self-hosted, frontend-only **family office dashboard** for tracking a househol
 - **Layout**: collapsible sidebar, global search, notifications (insurance renewals, FD maturities, loan due dates, vaccinations), profile menu, and a dark/light theme switcher.
 - **PWA**: installable, with offline caching of the app shell and Firestore's offline cache.
 - **International stocks**: USD stock quotes (Yahoo Finance) and USD/INR reference rates (Frankfurter) refresh independently at most once per day from the browser. If either provider is unavailable, the last saved value for that field is retained. This best-effort refresh may be blocked by browser CORS or rate limits.
+- **Livestock age cues**: herd-tree colors are approximate visual age bands, with a Gir reference first-calving benchmark (1,534 days) applied only when the breed is entered as Gir. They are not a health or lifespan prediction. Offspring counts include linked livestock records only.
 
 ---
 
@@ -134,6 +135,8 @@ npm install
 ```bash
 npm start          # http://localhost:4200
 ```
+
+In GitHub Codespaces, open the **Ports** tab, make sure port `4200` is forwarded, and open the URL shown there. The forwarded URL is specific to the active Codespace; an old forwarded URL may return 404.
 
 Sign in with the Google account `nagarjun.sanji@gmail.com`. Other verified Google accounts can sign in to request access, but remain blocked from app data until approved. As super admin, review pending requests from the **Access approvals** panel on your dashboard and choose **Approve**. Until approval, the applicant sees an approval-pending message. The panel updates live from Firestore; no direct database edits or Cloud Functions are required. This manual flow does not send an email notification. In Settings, choose **Test Firestore connection** to verify the signed-in account can reach the live database, or **Export JSON backup** to download a local backup. Production UI does not include sample-data loading or bulk record deletion.
 

@@ -42,7 +42,7 @@ export interface AgricultureLand extends Entity {
   annualExpenses: number;
 }
 
-export const ANIMAL_TYPES = ['Cow', 'Buffalo', 'Bull', 'Calf', 'Goat', 'Sheep', 'Poultry'] as const;
+export const ANIMAL_TYPES = ['Cow', 'Goat'] as const;
 export type AnimalType = (typeof ANIMAL_TYPES)[number];
 
 export interface Livestock extends Entity {
@@ -53,6 +53,8 @@ export interface Livestock extends Entity {
   tagNumber?: string;
   gender?: 'Female' | 'Male';
   birthDate?: IsoDate;
+  lifeStatus?: 'Alive' | 'Deceased';
+  deathDate?: IsoDate;
   motherId?: string;
   pregnancyMonths?: number;
   count: number;
