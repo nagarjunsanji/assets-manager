@@ -175,7 +175,17 @@
 
 .profile-card { padding: 12px 16px; display: flex; flex-direction: column; small { color: var(--text-muted); } }
 
-.notif-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; min-width: 340px; }
+.notif-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  min-width: 340px;
+
+  > div { display: flex; flex-direction: column; gap: 2px; }
+  small { color: var(--text-muted); font-size: 11px; }
+}
 
 .notif {
   height: auto !important;
@@ -190,6 +200,36 @@
   &.sev-info mat-icon { color: var(--primary) !important; }
   &.cashflow-credit mat-icon { color: var(--success) !important; }
   &.cashflow-debit mat-icon { color: var(--danger) !important; }
+}
+
+.notif-item {
+  margin: 4px 8px 8px;
+  padding: 4px 0 8px;
+  border: 1px solid var(--glass-border);
+  border-left: 3px solid var(--primary);
+  border-radius: 12px;
+  background: var(--surface);
+
+  &:has(.cashflow-credit) { border-left-color: var(--success); }
+  &:has(.cashflow-debit) { border-left-color: var(--danger); }
+  &:has(.sev-critical) { border-left-color: var(--danger); }
+}
+.notif { width: 100%; }
+.notif-count {
+  width: fit-content;
+  margin-top: 5px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  font-size: 10px;
+  font-weight: 700;
+}
+.confirm-payment {
+  margin: 2px 12px 0 56px;
+  min-height: 34px;
+  font-size: 12px;
+  mat-icon { width: 17px; height: 17px; font-size: 17px; margin-right: 5px; }
 }
 
 .notif-empty { padding: 24px 16px; display: flex; align-items: center; gap: 10px; color: var(--text-muted); }

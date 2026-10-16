@@ -1,16 +1,25 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { AppNotification } from '../models/analytics.models';
+import { PaymentConfirmation } from '../models/wealth.models';
+import {
+  LendingRepositoryService, LiabilityRepositoryService,
+} from './repositories/repositories';
 import { daysUntil, fdMetrics, lendingMetrics } from '../utilities/finance';
 import { formatDate, formatInr } from '../utilities/format';
-import { cashflowEvents } from '../utilities/repayment-calendar';
+import { CashflowEvent, cashflowEvents } from '../utilities/repayment-calendar';
 import { PortfolioService } from './portfolio.service';
+import { ToastService } from './toast.service';
 
 const DISMISSED_KEY = 'asset-manager.dismissed-alerts';
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   private readonly portfolio = inject(PortfolioService);
+  private readonly lendingRepo = inject(LendingRepositoryService);
+  private readonly liabilityRepo = inject(LiabilityRepositoryService);
+  private readonly toast = inject(ToastService);
   private readonly dismissed = signal<string[]>(JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? '[]'));
+  private readonly confirming = signal<string[]>([]);
 
   readonly all = computed<AppNotification[]>(() => {
     const d = this.portfolio.data();
@@ -18,26 +27,36 @@ export class NotificationService {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const reminderEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+    const startDates = [
+      ...d.lending.filter((loan) => loan.status !== 'Closed').map((loan) => loan.startDate),
+      ...d.liabilities.filter((liability) => liability.status !== 'Planned' && liability.outstanding > 0)
+        .map((liability) => liability.startDate),
+    ].sort();
+    const historyStart = startDates[0]
+      ? new Date(`${startDates[0]}T00:00:00`)
+      : today;
 
-    for (const event of cashflowEvents(d.lending, d.liabilities, today, reminderEnd, today, d.insurance)) {
+    const overdueEvents = new Map<string, { event: CashflowEvent; days: number }[]>();
+    const events = cashflowEvents(d.lending, d.liabilities, historyStart, reminderEnd, today, d.insurance);
+    for (const event of events) {
+      if (!event.lending && !event.liability) continue;
       const [year, month, day] = event.date.split('-').map(Number);
       const eventDay = Date.UTC(year, month - 1, day);
       const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
       const days = Math.round((eventDay - todayUtc) / 86_400_000);
-      if (days < 0 || days > 7 || event.schedule.status === 'Paid') continue;
-      const isCredit = event.direction === 'credit';
-      out.push({
-        id: `cashflow-${event.id}`,
-        severity: 'info',
-        icon: isCredit ? 'south' : 'north',
-        cashflow: event.direction,
-        title: days === 0
-          ? `${isCredit ? 'Credit expected' : 'Payment due'} today`
-          : `${isCredit ? 'Credit expected' : 'Payment due'} in ${days} ${days === 1 ? 'day' : 'days'}`,
-        message: `${event.title} · ${event.amountKnown === false ? 'Amount not provided' : formatInr(event.amount)} · ${formatDate(event.date)} · ${event.subtitle}`,
-        date: event.date,
-        route: '/calendar',
-      });
+      if (days > 7 || event.schedule.status === 'Paid') continue;
+      if (days < 0) {
+        const key = event.lending ? `lending:${event.lending.id}` : `liability:${event.liability!.id}`;
+        overdueEvents.set(key, [...(overdueEvents.get(key) ?? []), { event, days }]);
+        continue;
+      }
+      out.push(this.paymentNotification(event, days));
+    }
+
+    for (const [key, pending] of overdueEvents) {
+      pending.sort((a, b) => a.event.date.localeCompare(b.event.date));
+      const oldest = pending[0];
+      out.push(this.paymentNotification(oldest.event, oldest.days, pending.length, key));
     }
 
     for (const fd of d.fixedDeposits) {
@@ -100,9 +119,53 @@ export class NotificationService {
     return out.sort((a, b) => a.date.localeCompare(b.date));
   });
 
+  private paymentNotification(
+    event: CashflowEvent,
+    days: number,
+    overdueInstallments = 0,
+    overdueKey?: string,
+  ): AppNotification {
+    const isCredit = event.direction === 'credit';
+    const kind = event.lending ? 'lending' as const : 'liability' as const;
+    const label = event.lending ? 'Private lending receipt' : 'Loan payment';
+    const confirmation = days === 0 || days < 0
+      ? {
+          kind,
+          entityId: event.lending?.id ?? event.liability!.id,
+          installment: event.schedule.installment,
+          amount: event.amount,
+          principal: event.schedule.principal,
+          dueDate: event.date,
+        }
+      : undefined;
+    const detail = event.lending?.loanName || event.lending?.borrowerName || event.liability?.name || event.title;
+    const account = event.lending?.paymentAccount || event.liability?.paymentAccount;
+    const periodText = days < 0
+      ? `Overdue by ${-days} ${-days === 1 ? 'day' : 'days'}`
+      : days === 0
+        ? 'Due today'
+        : `Due in ${days} ${days === 1 ? 'day' : 'days'}`;
+    return {
+      id: overdueKey ? `overdue-${overdueKey}` : `cashflow-${event.id}`,
+      severity: days < 0 ? 'critical' : days <= 2 ? 'warning' : 'info',
+      icon: isCredit ? 'south' : 'north',
+      cashflow: event.direction,
+      title: days < 0
+        ? `${label} · overdue`
+        : days === 0
+          ? `${label} · due today`
+          : `${label} · due in ${days} ${days === 1 ? 'day' : 'days'}`,
+      message: `${detail} · ${formatInr(event.amount)} · ${periodText} (${formatDate(event.date)})${account ? ` · ${account}` : ''}`,
+      date: event.date,
+      route: event.lending ? '/lending' : '/liabilities',
+      overdueInstallments: overdueInstallments || undefined,
+      paymentConfirmation: confirmation,
+    };
+  }
+
   readonly active = computed(() => {
     const dismissed = new Set(this.dismissed());
-    return this.all().filter((n) => !dismissed.has(n.id));
+    return this.all().filter((n) => n.paymentConfirmation || !dismissed.has(n.id));
   });
 
   readonly unreadCount = computed(() => this.active().length);
@@ -112,12 +175,72 @@ export class NotificationService {
   }
 
   dismissAll(): void {
-    this.persist([...this.dismissed(), ...this.active().map((n) => n.id)]);
+    this.persist([...this.dismissed(), ...this.active().filter((n) => !n.paymentConfirmation).map((n) => n.id)]);
+  }
+
+  isConfirming(notification: AppNotification): boolean {
+    const confirmation = notification.paymentConfirmation;
+    return !!confirmation && this.confirming().includes(`${confirmation.kind}:${confirmation.entityId}`);
+  }
+
+  async confirmPayment(notification: AppNotification): Promise<void> {
+    const confirmation = notification.paymentConfirmation;
+    if (!confirmation || this.isConfirming(notification)) return;
+
+    const key = `${confirmation.kind}:${confirmation.entityId}`;
+    this.confirming.update((pending) => [...pending, key]);
+    try {
+      const entry: PaymentConfirmation = {
+        installment: confirmation.installment,
+        dueDate: confirmation.dueDate,
+        amount: confirmation.amount,
+        principal: confirmation.principal,
+        confirmedAt: new Date().toISOString(),
+      };
+      if (confirmation.kind === 'lending') {
+        const record = this.lendingRepo.getById(confirmation.entityId);
+        if (!record) throw new Error(`Could not find lending record ${confirmation.entityId}`);
+        const paymentConfirmations = record.paymentConfirmations ?? [];
+        if (paymentConfirmations.some((item) => item.installment === confirmation.installment)) return;
+        const updatedConfirmations = [...paymentConfirmations, entry];
+        const paymentsMade = this.contiguousPaymentsMade(record.paymentsMade, updatedConfirmations);
+        await this.lendingRepo.update(record.id, {
+          paymentConfirmations: updatedConfirmations,
+          paymentsMade,
+          amountRecovered: record.amountRecovered + confirmation.amount,
+        });
+      } else {
+        const record = this.liabilityRepo.getById(confirmation.entityId);
+        if (!record) throw new Error(`Could not find liability record ${confirmation.entityId}`);
+        const paymentConfirmations = record.paymentConfirmations ?? [];
+        if (paymentConfirmations.some((item) => item.installment === confirmation.installment)) return;
+        const updatedConfirmations = [...paymentConfirmations, entry];
+        const paymentsMade = this.contiguousPaymentsMade(record.paymentsMade, updatedConfirmations);
+        await this.liabilityRepo.update(record.id, {
+          paymentConfirmations: updatedConfirmations,
+          paymentsMade,
+          outstanding: Math.max(0, record.outstanding - confirmation.principal),
+        });
+      }
+      this.toast.success(confirmation.kind === 'lending' ? 'Receipt confirmed.' : 'Payment confirmed.');
+    } catch (error) {
+      console.error('Could not confirm scheduled payment', error);
+      this.toast.error('Could not save the payment confirmation. Please try again.');
+    } finally {
+      this.confirming.update((pending) => pending.filter((item) => item !== key));
+    }
   }
 
   private persist(ids: string[]): void {
     const unique = [...new Set(ids)].slice(-300);
     this.dismissed.set(unique);
     localStorage.setItem(DISMISSED_KEY, JSON.stringify(unique));
+  }
+
+  private contiguousPaymentsMade(currentCount: number | undefined, confirmations: PaymentConfirmation[]): number {
+    const paid = new Set(confirmations.map((confirmation) => confirmation.installment));
+    let count = currentCount ?? 0;
+    while (paid.has(count + 1)) count++;
+    return count;
   }
 }

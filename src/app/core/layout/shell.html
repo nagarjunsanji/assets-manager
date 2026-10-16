@@ -102,26 +102,45 @@
       </button>
       <mat-menu #notifMenu="matMenu" class="notif-menu" xPosition="before">
         <div class="notif-header" (click)="$event.stopPropagation()">
-          <strong>Alerts</strong>
+          <div>
+            <strong>Notifications</strong>
+            <small>{{ notifications.active().length }} active</small>
+          </div>
           @if (notifications.active().length) {
-            <button mat-button (click)="notifications.dismissAll()">Mark all read</button>
+            <button mat-button (click)="notifications.dismissAll()">Dismiss other alerts</button>
           }
         </div>
         @for (n of notifications.active(); track n.id) {
-          <a
-            mat-menu-item
-            [routerLink]="n.route"
-            class="notif"
-            [class]="'sev-' + n.severity"
-            [class.cashflow-credit]="n.cashflow === 'credit'"
-            [class.cashflow-debit]="n.cashflow === 'debit'"
-          >
-            <mat-icon>{{ n.icon }}</mat-icon>
-            <div class="notif-text">
-              <strong>{{ n.title }}</strong>
-              <small>{{ n.message }}</small>
-            </div>
-          </a>
+          <div class="notif-item" (click)="$event.stopPropagation()">
+            <a
+              mat-menu-item
+              [routerLink]="n.route"
+              class="notif"
+              [class]="'sev-' + n.severity"
+              [class.cashflow-credit]="n.cashflow === 'credit'"
+              [class.cashflow-debit]="n.cashflow === 'debit'"
+            >
+              <mat-icon>{{ n.icon }}</mat-icon>
+              <div class="notif-text">
+                <strong>{{ n.title }}</strong>
+                <small>{{ n.message }}</small>
+                @if (n.overdueInstallments; as count) {
+                  <span class="notif-count">{{ count }} overdue {{ count === 1 ? 'installment' : 'installments' }} · oldest first</span>
+                }
+              </div>
+            </a>
+            @if (n.paymentConfirmation) {
+              <button
+                mat-stroked-button
+                class="confirm-payment"
+                [disabled]="notifications.isConfirming(n)"
+                (click)="notifications.confirmPayment(n)"
+              >
+                <mat-icon>{{ notifications.isConfirming(n) ? 'hourglass_top' : 'check' }}</mat-icon>
+                {{ notifications.isConfirming(n) ? 'Saving…' : n.cashflow === 'credit' ? 'I received this' : 'I paid this' }}
+              </button>
+            }
+          </div>
         } @empty {
           <div class="notif-empty">
             <mat-icon>notifications_off</mat-icon>

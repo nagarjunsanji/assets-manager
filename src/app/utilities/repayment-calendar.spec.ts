@@ -1,7 +1,7 @@
 import { Insurance, Lending, Liability } from '../models/wealth.models';
 import { liabilityMetrics } from './finance';
 import {
-  cashflowEvents, insuranceEffectiveMaturityDate, insuranceSchedule, lendingSchedule, liabilitySchedule,
+  cashflowEvents, confirmedPaymentCount, insuranceEffectiveMaturityDate, insuranceSchedule, lendingSchedule, liabilitySchedule,
 } from './repayment-calendar';
 
 describe('repayment calendar', () => {
@@ -85,6 +85,29 @@ describe('repayment calendar', () => {
     expect(rows[0].payment).toBe(31_000);
     expect(rows[0].principal).toBeGreaterThan(0);
     expect(rows[0].interest).toBeGreaterThan(0);
+  });
+
+  it('marks explicitly confirmed installments paid even when earlier installments are still outstanding', () => {
+    const rows = liabilitySchedule({
+      ...liability,
+      startDate: '2025-01-01',
+      paymentConfirmations: [{
+        installment: 2,
+        dueDate: '2025-03-01',
+        amount: 31_000,
+        principal: 23_500,
+        confirmedAt: '2025-03-02T10:00:00.000Z',
+      }],
+    }, new Date(2025, 3, 1));
+
+    expect(rows.slice(0, 3).map(({ status }) => status)).toEqual(['Unrecorded', 'Paid', 'Upcoming']);
+  });
+
+  it('counts legacy paid installments and explicit confirmations without double-counting', () => {
+    expect(confirmedPaymentCount(2, [
+      { installment: 2, dueDate: '2025-03-01', amount: 100, principal: 100, confirmedAt: '2025-03-01T00:00:00.000Z' },
+      { installment: 4, dueDate: '2025-05-01', amount: 100, principal: 100, confirmedAt: '2025-05-01T00:00:00.000Z' },
+    ])).toBe(3);
   });
 
   it('excludes planned loans from outstanding repayment and interest calculations', () => {

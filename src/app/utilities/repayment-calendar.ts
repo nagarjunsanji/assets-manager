@@ -1,4 +1,4 @@
-import { Insurance, Lending, Liability } from '../models/wealth.models';
+import { Insurance, Lending, Liability, PaymentConfirmation } from '../models/wealth.models';
 import { emi } from './finance';
 
 export type CashflowDirection = 'credit' | 'debit';
@@ -58,14 +58,36 @@ function monthsBetween(from: Date, to: Date): number {
   return (to.getFullYear() - from.getFullYear()) * 12 + to.getMonth() - from.getMonth();
 }
 
-function statusFor(period: number, date: Date, paymentsMade: number | undefined, asOf: Date): RepaymentStatus {
-  if (paymentsMade !== undefined && period <= paymentsMade) return 'Paid';
+function statusFor(
+  period: number,
+  date: Date,
+  paymentsMade: number | undefined,
+  paymentConfirmations: PaymentConfirmation[] | undefined,
+  asOf: Date,
+): RepaymentStatus {
+  if (period <= (paymentsMade ?? 0) || paymentConfirmations?.some((confirmation) => confirmation.installment === period)) {
+    return 'Paid';
+  }
   const today = new Date(asOf.getFullYear(), asOf.getMonth(), asOf.getDate());
   return date < today ? 'Unrecorded' : 'Upcoming';
 }
 
 export function insuranceEffectiveMaturityDate(policy: Insurance): string | undefined {
   return policy.maturityDate ?? policy.endDate;
+}
+
+export function confirmedPaymentCount(
+  paymentsMade: number | undefined,
+  confirmations: PaymentConfirmation[] | undefined,
+): number {
+  const installments = new Set<number>();
+  for (let installment = 1; installment <= (paymentsMade ?? 0); installment++) {
+    installments.add(installment);
+  }
+  for (const confirmation of confirmations ?? []) {
+    installments.add(confirmation.installment);
+  }
+  return installments.size;
 }
 
 export function lendingSchedule(loan: Lending, asOf = new Date(), through = asOf): RepaymentRow[] {
@@ -120,7 +142,7 @@ export function lendingSchedule(loan: Lending, asOf = new Date(), through = asOf
       principal,
       interest,
       balance,
-      status: statusFor(period, date, loan.paymentsMade, asOf),
+      status: statusFor(period, date, loan.paymentsMade, loan.paymentConfirmations, asOf),
     });
   }
   return rows;
@@ -146,7 +168,7 @@ export function liabilitySchedule(liability: Liability, asOf = new Date()): Repa
       principal,
       interest,
       balance,
-      status: statusFor(period, date, liability.paymentsMade, asOf),
+      status: statusFor(period, date, liability.paymentsMade, liability.paymentConfirmations, asOf),
     });
   }
   return rows;
@@ -202,7 +224,7 @@ export function insuranceMaturitySchedule(policy: Insurance, from: Date, to: Dat
     principal: policy.maturityPayoutAmount ?? 0,
     interest: 0,
     balance: 0,
-    status: statusFor(1, date, undefined, asOf),
+    status: statusFor(1, date, undefined, undefined, asOf),
   }];
 }
 

@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { Lending } from '../../models/wealth.models';
 import { lendingMetrics } from '../../utilities/finance';
 import { formatInr } from '../../utilities/format';
-import { lendingSchedule } from '../../utilities/repayment-calendar';
+import { confirmedPaymentCount, lendingSchedule } from '../../utilities/repayment-calendar';
 
 export interface LendingScheduleDialogData {
   lending: Lending;
@@ -39,7 +39,7 @@ export interface LendingScheduleDialogData {
         <article><small>End date</small><strong>{{ data.lending.endDate ? formatDate(data.lending.endDate) : 'Open-ended' }}</strong></article>
         <article><small>Payment day</small><strong>{{ data.lending.paymentDay ?? 1 }} of each month</strong></article>
         <article><small>Receiving account</small><strong>{{ data.lending.paymentAccount || '—' }}</strong></article>
-        <article><small>Installments paid</small><strong>{{ data.lending.paymentsMade ?? '—' }}</strong></article>
+        <article><small>Installments confirmed paid</small><strong>{{ confirmedCount() }}</strong></article>
         <article><small>Status</small><strong>{{ data.lending.status }}</strong></article>
         @if (data.lending.mobile) {
           <article><small>Mobile</small><strong>{{ data.lending.mobile }}</strong></article>
@@ -154,6 +154,10 @@ export class LendingScheduleDialog {
   protected readonly yearTotal = computed(() => this.rows().reduce((sum, row) => sum + row.payment, 0));
   protected readonly yearPrincipal = computed(() => this.rows().reduce((sum, row) => sum + row.principal, 0));
   protected readonly yearInterest = computed(() => this.rows().reduce((sum, row) => sum + row.interest, 0));
+
+  protected confirmedCount(): number {
+    return confirmedPaymentCount(this.data.lending.paymentsMade, this.data.lending.paymentConfirmations);
+  }
 
   protected changeYear(amount: number): void {
     this.selectedYear.update((year) => year + amount);

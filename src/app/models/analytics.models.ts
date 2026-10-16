@@ -61,4 +61,13 @@ export interface AppNotification {
   message: string;
   date: string;
   route: string;
+  overdueInstallments?: number;
+  paymentConfirmation?: {
+    kind: 'lending' | 'liability';
+    entityId: string;
+    installment: number;
+    amount: number;
+    principal: number;
+    dueDate: string;
+  };
 }

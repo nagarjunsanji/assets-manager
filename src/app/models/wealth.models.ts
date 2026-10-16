@@ -100,6 +100,7 @@ export interface Lending extends Entity {
   paymentDay?: number;
   paymentAccount?: string;
   paymentsMade?: number;
+  paymentConfirmations?: PaymentConfirmation[];
   collateral?: string;
   amountRecovered: number;
   status: (typeof LENDING_STATUS)[number];
@@ -234,6 +235,15 @@ export interface Liability extends Entity {
   paymentDay?: number;
   paymentAccount?: string;
   paymentsMade?: number;
+  paymentConfirmations?: PaymentConfirmation[];
+}
+
+export interface PaymentConfirmation {
+  installment: number;
+  dueDate: IsoDate;
+  amount: number;
+  principal: number;
+  confirmedAt: string;
 }
 
 // ---------- Goals ----------
