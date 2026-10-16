@@ -144,8 +144,8 @@ export class AnalyticsPage {
   );
 
   protected readonly propertyAppreciation = computed(() => {
-    const props = this.p.properties.items();
-    return barChart(props.map((x) => x.name), [{ name: 'Appreciation', data: props.map((x) => Math.round(appreciationPct(x.purchaseCost, x.currentValue) * 10) / 10) }], {
+    const props = this.p.properties.items().filter((property) => property.purchaseCost != null);
+    return barChart(props.map((x) => x.name), [{ name: 'Appreciation', data: props.map((x) => Math.round(appreciationPct(x.purchaseCost ?? 0, x.currentValue) * 10) / 10) }], {
       colors: ['#22D3EE'],
       plotOptions: { bar: { horizontal: true, borderRadius: 6, barHeight: '50%', borderRadiusApplication: 'end' } },
       yaxis: { labels: { formatter: (v: number | string) => String(v) } },

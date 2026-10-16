@@ -157,7 +157,11 @@
           </div>
           <div class="right">
             <strong>{{ fmt(h.value) }}</strong>
-            <small [class.pos]="h.change >= 0" [class.neg]="h.change < 0">{{ h.change >= 0 ? '+' : '' }}{{ h.change.toFixed(1) }}%</small>
+            @if (h.change == null) {
+              <small>Basis unknown</small>
+            } @else {
+              <small [class.pos]="h.change >= 0" [class.neg]="h.change < 0">{{ h.change >= 0 ? '+' : '' }}{{ h.change.toFixed(1) }}%</small>
+            }
           </div>
         </div>
       } @empty {

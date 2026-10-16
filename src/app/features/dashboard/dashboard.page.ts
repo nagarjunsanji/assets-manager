@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -99,7 +99,7 @@ export class DashboardPage {
   protected readonly topHoldings = computed(() => {
     const d = this.p.data();
     return [
-      ...d.properties.map((x) => ({ name: x.name, kind: 'Property', icon: 'apartment', value: x.currentValue, change: pct(x.currentValue - x.purchaseCost, x.purchaseCost) })),
+      ...d.properties.map((x) => ({ name: x.name, kind: 'Property', icon: 'apartment', value: x.currentValue, change: x.purchaseCost == null ? null : pct(x.currentValue - x.purchaseCost, x.purchaseCost) })),
       ...d.agricultureLands.map((x) => ({ name: x.name, kind: 'Agri Land', icon: 'grass', value: x.marketValue, change: pct(x.marketValue - x.purchaseValue, x.purchaseValue) })),
       ...d.stocks.map((x) => ({ name: x.symbol, kind: 'Stock', icon: 'candlestick_chart', value: x.quantity * x.currentPrice, change: pct(x.currentPrice - x.purchasePrice, x.purchasePrice) })),
       ...d.mutualFunds.map((x) => ({ name: x.fundName.split(' - ')[0], kind: 'Mutual Fund', icon: 'pie_chart', value: x.units * x.currentNav, change: pct(x.currentNav - x.averageNav, x.averageNav) })),

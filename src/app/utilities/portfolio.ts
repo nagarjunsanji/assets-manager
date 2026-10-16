@@ -64,7 +64,7 @@ export function computeSummary(d: PortfolioData, profile: UserProfile, asOf: Dat
     ),
     cls('metals', 'Gold & Silver', sum(metals, (a) => a.currentValue), sum(metals, (a) => a.investedValue)),
     cls('crypto', 'Crypto', sum(crypto, (a) => a.currentValue), sum(crypto, (a) => a.investedValue)),
-    cls('realEstate', 'Real Estate', sum(d.properties, (p) => p.currentValue), sum(d.properties, (p) => p.purchaseCost)),
+    cls('realEstate', 'Real Estate', sum(d.properties, (p) => p.currentValue), sum(d.properties, (p) => p.purchaseCost ?? 0)),
     cls(
       'agriculture',
       'Agriculture',

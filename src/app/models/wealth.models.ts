@@ -12,8 +12,8 @@ export interface Property extends Entity {
   type: PropertyType;
   address: string;
   surveyNumber?: string;
-  purchaseDate: IsoDate;
-  purchaseCost: number;
+  purchaseDate?: IsoDate;
+  purchaseCost?: number;
   currentValue: number;
   /** Informational loan details; the loan itself should be tracked in Liabilities. */
   lender?: string;

@@ -8,17 +8,19 @@ import { StatCard } from '../../shared/components/stat-card';
 import { FieldConfig } from '../../shared/dialogs/entity-form-dialog';
 import { barChart, donutChart } from '../../utilities/chart-builders';
 import { appreciationPct, cagr, pct, sum, yearsBetween } from '../../utilities/finance';
+import { formatInr } from '../../utilities/format';
 
 export function propertyMetrics(p: Property) {
+  const purchaseCost = p.purchaseCost ?? 0;
   const years = yearsBetween(p.purchaseDate);
   const annualRent = (p.monthlyRent || 0) * 12;
   const netRent = annualRent - (p.annualExpenses || 0);
-  const gain = p.currentValue - p.purchaseCost;
+  const gain = p.currentValue - purchaseCost;
   return {
-    appreciation: appreciationPct(p.purchaseCost, p.currentValue),
-    cagr: cagr(p.purchaseCost, p.currentValue, years),
+    appreciation: appreciationPct(purchaseCost, p.currentValue),
+    cagr: cagr(purchaseCost, p.currentValue, years),
     rentalYield: pct(annualRent, p.currentValue),
-    roi: pct(gain + netRent * years, p.purchaseCost),
+    roi: pct(gain + netRent * years, purchaseCost),
     equity: p.currentValue - (p.loanOutstanding || 0),
   };
 }
@@ -28,8 +30,8 @@ const FIELDS: FieldConfig[] = [
   { key: 'type', label: 'Property type', type: 'select', options: PROPERTY_TYPES, required: true, defaultValue: 'Residential' },
   { key: 'address', label: 'Address', type: 'text', required: true, span: 2 },
   { key: 'surveyNumber', label: 'Survey number', type: 'text' },
-  { key: 'purchaseDate', label: 'Purchase date', type: 'date', required: true },
-  { key: 'purchaseCost', label: 'Purchase cost', type: 'currency', required: true, section: 'Valuation' },
+  { key: 'purchaseDate', label: 'Purchase date', type: 'date', hint: 'Leave blank if unknown.' },
+  { key: 'purchaseCost', label: 'Purchase cost', type: 'currency', section: 'Valuation', hint: 'Leave blank if unknown.' },
   { key: 'currentValue', label: 'Current value', type: 'currency', required: true },
   { key: 'monthlyRent', label: 'Monthly rental income', type: 'currency', defaultValue: 0 },
   { key: 'annualExpenses', label: 'Annual expenses (tax, maintenance)', type: 'currency', defaultValue: 0 },
@@ -66,7 +68,7 @@ export class PropertiesPage {
   protected readonly columns: ColumnConfig<Property>[] = [
     { key: 'name', label: 'Property', sub: (p) => p.address },
     { key: 'type', label: 'Type', type: 'chip' },
-    { key: 'purchaseCost', label: 'Cost', type: 'currency' },
+    { key: 'purchaseCost', label: 'Cost', value: (p) => p.purchaseCost == null ? 'Unknown' : formatInr(p.purchaseCost, false) },
     { key: 'currentValue', label: 'Value', type: 'currency' },
     { key: 'appreciation', label: 'Appreciation', type: 'pnl-pct', value: (p) => propertyMetrics(p).appreciation },
     { key: 'cagr', label: 'CAGR', type: 'percent', value: (p) => propertyMetrics(p).cagr },
@@ -79,16 +81,18 @@ export class PropertiesPage {
   protected readonly kpi = computed(() => {
     const items = this.repo.items();
     const value = sum(items, (p) => p.currentValue);
-    const cost = sum(items, (p) => p.purchaseCost);
+    const knownCostProperties = items.filter((p) => p.purchaseCost != null);
+    const cost = sum(knownCostProperties, (p) => p.purchaseCost ?? 0);
+    const knownCostValue = sum(knownCostProperties, (p) => p.currentValue);
     const rent = sum(items, (p) => p.monthlyRent);
     const loans = sum(items, (p) => p.loanOutstanding || 0);
-    return { value, gain: value - cost, appreciation: appreciationPct(cost, value), rent, yield: pct(rent * 12, value), equity: value - loans, loans: pct(loans, value) };
+    return { value, gain: knownCostValue - cost, appreciation: appreciationPct(cost, knownCostValue), rent, yield: pct(rent * 12, value), equity: value - loans, loans: pct(loans, value) };
   });
 
   protected readonly valueChart = computed(() => {
     const items = this.repo.items();
     return barChart(items.map((p) => p.name), [
-      { name: 'Purchase Cost', data: items.map((p) => p.purchaseCost) },
+      { name: 'Purchase Cost', data: items.map((p) => p.purchaseCost ?? 0) },
       { name: 'Current Value', data: items.map((p) => p.currentValue) },
     ], { colors: ['#8A94B2', '#4F8CFF'] });
   });
@@ -98,4 +102,5 @@ export class PropertiesPage {
     this.repo.items().forEach((p) => groups.set(p.type, (groups.get(p.type) ?? 0) + p.currentValue));
     return donutChart([...groups.keys()], [...groups.values()]);
   });
+
 }
