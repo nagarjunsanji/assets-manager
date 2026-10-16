@@ -34,7 +34,6 @@ export const NAVIGATION: NavGroup[] = [
     items: [
       { label: 'Properties', icon: 'apartment', route: '/properties' },
       { label: 'Agriculture Lands', icon: 'grass', route: '/agriculture' },
-      { label: 'Farms', icon: 'agriculture', route: '/farms' },
       { label: 'Livestock', icon: 'pets', route: '/livestock' },
       { label: 'Vehicles', icon: 'directions_car', route: '/vehicles' },
     ],

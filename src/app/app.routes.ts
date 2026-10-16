@@ -22,7 +22,6 @@ export const routes: Routes = [
       { path: 'simulator', title: 'Wealth Simulator', loadComponent: () => import('./features/simulator/simulator.page').then((m) => m.SimulatorPage) },
       { path: 'properties', title: 'Properties', loadComponent: () => import('./features/properties/properties.page').then((m) => m.PropertiesPage) },
       { path: 'agriculture', title: 'Agriculture Lands', loadComponent: () => import('./features/agriculture/agriculture.page').then((m) => m.AgriculturePage) },
-      { path: 'farms', title: 'Farms', loadComponent: () => import('./features/farms/farms.page').then((m) => m.FarmsPage) },
       { path: 'livestock', title: 'Livestock', loadComponent: () => import('./features/livestock/livestock.page').then((m) => m.LivestockPage) },
       { path: 'lending', title: 'Private Lending', loadComponent: () => import('./features/lending/lending.page').then((m) => m.LendingPage) },
       { path: 'stocks', title: 'Stocks', loadComponent: () => import('./features/stocks/stocks.page').then((m) => m.StocksPage) },

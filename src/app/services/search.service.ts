@@ -22,8 +22,13 @@ export class SearchService {
     return [
       ...d.properties.map((p) => r(p.name, `Property · ${formatInr(p.currentValue)}`, 'apartment', '/properties', p.address, p.type)),
       ...d.agricultureLands.map((l) => r(l.name, `Land · ${l.village}, ${l.district}`, 'grass', '/agriculture', l.cropType, l.surveyNumber)),
-      ...d.farms.map((f) => r(f.name, `Farm · ${f.location}`, 'agriculture', '/farms', f.farmType)),
-      ...d.livestock.map((l) => r(`${l.breed} ${l.animalType}`, `Livestock · ${l.count} head`, 'pets', '/livestock')),
+      ...d.livestock.map((l) => r(
+        `${l.tagNumber ? `#${l.tagNumber} ` : ''}${l.breed} ${l.animalType}`,
+        `Livestock · ${l.count} head · ${l.farmName ?? 'Location not set'}`,
+        'pets',
+        '/livestock',
+        l.farmName,
+      )),
       ...d.lending.map((l) => r(l.borrowerName, `Lending · ${formatInr(l.principal)}`, 'handshake', '/lending', l.mobile, l.loanType)),
       ...d.stocks.map((s) => r(s.symbol, `Stock · ${s.name}`, 'candlestick_chart', '/stocks', s.sector)),
       ...d.mutualFunds.map((f) => r(f.fundName, `Mutual Fund · ${f.amc}`, 'pie_chart', '/mutual-funds', f.folio, f.category)),

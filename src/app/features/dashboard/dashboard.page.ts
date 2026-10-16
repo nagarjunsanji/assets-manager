@@ -27,7 +27,6 @@ export class DashboardPage {
   protected readonly alerts = inject(NotificationService);
   protected readonly auth = inject(AuthService);
   protected readonly approvals = inject(AccessApprovalService);
-
   protected readonly s = this.p.summary;
   protected readonly fmt = formatInr;
   protected readonly fmtDate = formatDate;

@@ -4,7 +4,7 @@ import { periodKey } from '../utilities/format';
 import { computeSummary, PortfolioData } from '../utilities/portfolio';
 import { ProfileService } from './profile.service';
 import {
-  AgricultureLandRepositoryService, FarmRepositoryService, FixedDepositRepositoryService, GoalRepositoryService,
+  AgricultureLandRepositoryService, FixedDepositRepositoryService, GoalRepositoryService,
   InsuranceRepositoryService, LendingRepositoryService, LiabilityRepositoryService, LivestockRepositoryService,
   MutualFundRepositoryService, NetWorthHistoryRepositoryService, OtherAssetRepositoryService, PropertyRepositoryService,
   StockRepositoryService, VehicleRepositoryService,
@@ -15,7 +15,6 @@ import {
 export class PortfolioService {
   readonly properties = inject(PropertyRepositoryService);
   readonly agricultureLands = inject(AgricultureLandRepositoryService);
-  readonly farms = inject(FarmRepositoryService);
   readonly livestock = inject(LivestockRepositoryService);
   readonly lending = inject(LendingRepositoryService);
   readonly stocks = inject(StockRepositoryService);
@@ -30,7 +29,7 @@ export class PortfolioService {
   private readonly profileService = inject(ProfileService);
 
   private readonly repos = [
-    this.properties, this.agricultureLands, this.farms, this.livestock, this.lending, this.stocks, this.mutualFunds,
+    this.properties, this.agricultureLands, this.livestock, this.lending, this.stocks, this.mutualFunds,
     this.fixedDeposits, this.assets, this.insurance, this.vehicles, this.liabilities, this.goals,
   ];
 
@@ -41,7 +40,6 @@ export class PortfolioService {
   readonly data = computed<PortfolioData>(() => ({
     properties: this.properties.items(),
     agricultureLands: this.agricultureLands.items(),
-    farms: this.farms.items(),
     livestock: this.livestock.items(),
     lending: this.lending.items(),
     stocks: this.stocks.items(),

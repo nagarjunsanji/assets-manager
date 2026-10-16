@@ -1,14 +1,13 @@
 import { AssetClassValue, HealthFactor, LabeledValue, PortfolioSummary } from '../models/analytics.models';
 import { UserProfile } from '../models/user.model';
 import {
-  AgricultureLand, Farm, FixedDeposit, Goal, Insurance, Lending, Liability, Livestock, MutualFund, OtherAsset, Property, Stock, Vehicle,
+  AgricultureLand, FixedDeposit, Goal, Insurance, Lending, Liability, Livestock, MutualFund, OtherAsset, Property, Stock, Vehicle,
 } from '../models/wealth.models';
 import { fdMetrics, lendingMetrics, livestockMetrics, monthsToTarget, pct, premiumMonthly, sum } from './finance';
 
 export interface PortfolioData {
   properties: Property[];
   agricultureLands: AgricultureLand[];
-  farms: Farm[];
   livestock: Livestock[];
   lending: Lending[];
   stocks: Stock[];
@@ -69,8 +68,8 @@ export function computeSummary(d: PortfolioData, profile: UserProfile, asOf: Dat
     cls(
       'agriculture',
       'Agriculture',
-      sum(d.agricultureLands, (l) => l.marketValue) + sum(d.farms, (f) => f.infrastructureValue),
-      sum(d.agricultureLands, (l) => l.purchaseValue) + sum(d.farms, (f) => f.infrastructureValue),
+      sum(d.agricultureLands, (l) => l.marketValue),
+      sum(d.agricultureLands, (l) => l.purchaseValue),
     ),
     cls('livestock', 'Livestock', sum(d.livestock, (l) => l.currentValue), sum(d.livestock, (l) => l.purchaseValue)),
     cls(
@@ -102,7 +101,6 @@ export function computeSummary(d: PortfolioData, profile: UserProfile, asOf: Dat
     { label: 'Lending Interest', value: sum(lend, (x) => x.m.monthlyIncome) },
     { label: 'FD Interest', value: sum(d.fixedDeposits, (f) => (f.principal * f.interestRate) / 1200) },
     { label: 'Agriculture', value: sum(d.agricultureLands, (l) => (l.annualRevenue - l.annualExpenses) / 12) },
-    { label: 'Farm Operations', value: sum(d.farms, (f) => (f.totalRevenue - f.totalExpense) / 12) },
     { label: 'Livestock', value: livestockProfit },
     { label: 'Other Yield', value: sum(d.assets, (a) => (a.annualIncome || 0) / 12) },
   ];

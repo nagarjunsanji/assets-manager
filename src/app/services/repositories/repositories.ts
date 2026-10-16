@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import {
-  AgricultureLand, Farm, FixedDeposit, Goal, Insurance, Lending, Liability, Livestock, MutualFund, NetWorthSnapshot,
+  AgricultureLand, FixedDeposit, Goal, Insurance, Lending, Liability, Livestock, MutualFund, NetWorthSnapshot,
   OtherAsset, Property, Stock, Vehicle, VaultDocument,
 } from '../../models/wealth.models';
 import { BaseRepository } from './base-repository';
@@ -13,11 +13,6 @@ export class PropertyRepositoryService extends BaseRepository<Property> {
 @Injectable({ providedIn: 'root' })
 export class AgricultureLandRepositoryService extends BaseRepository<AgricultureLand> {
   constructor() { super('agricultureLands'); }
-}
-
-@Injectable({ providedIn: 'root' })
-export class FarmRepositoryService extends BaseRepository<Farm> {
-  constructor() { super('farms'); }
 }
 
 @Injectable({ providedIn: 'root' })

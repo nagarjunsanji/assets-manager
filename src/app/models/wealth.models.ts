@@ -41,28 +41,19 @@ export interface AgricultureLand extends Entity {
   annualExpenses: number;
 }
 
-// ---------- Business assets ----------
-export const FARM_TYPES = ['Dairy', 'Poultry', 'Mixed', 'Horticulture', 'Crop', 'Aquaculture'] as const;
-
-export interface Farm extends Entity {
-  name: string;
-  location: string;
-  farmType: string;
-  landAreaAcres: number;
-  established?: IsoDate;
-  /** Annual crop / non-livestock revenue */
-  totalRevenue: number;
-  totalExpense: number;
-  infrastructureValue: number;
-}
-
 export const ANIMAL_TYPES = ['Cow', 'Buffalo', 'Bull', 'Calf', 'Goat', 'Sheep', 'Poultry'] as const;
 export type AnimalType = (typeof ANIMAL_TYPES)[number];
 
 export interface Livestock extends Entity {
-  farmId: string;
+  farmId?: string;
+  farmName?: string;
   animalType: AnimalType;
   breed: string;
+  tagNumber?: string;
+  gender?: 'Female' | 'Male';
+  birthDate?: IsoDate;
+  motherId?: string;
+  pregnancyMonths?: number;
   count: number;
   initialCount: number;
   purchaseDate?: IsoDate;
@@ -70,6 +61,7 @@ export interface Livestock extends Entity {
   currentValue: number;
   milkLitresPerDay: number;
   milkPricePerLitre: number;
+  milkIncomeTransactions?: CashFlowEntry[];
   otherMonthlyRevenue?: number;
   monthlyFeedCost: number;
   monthlyMedicineCost: number;

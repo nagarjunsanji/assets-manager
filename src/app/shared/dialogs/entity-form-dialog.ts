@@ -9,7 +9,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { SelectOption } from '../../models/entity.model';
 
-export type FieldType = 'text' | 'number' | 'currency' | 'percent' | 'date' | 'select' | 'textarea' | 'toggle' | 'tel' | 'email';
+export type FieldType = 'text' | 'number' | 'currency' | 'percent' | 'date' | 'select' | 'textarea' | 'cashflows' | 'toggle' | 'tel' | 'email';
 
 export interface FieldConfig {
   key: string;
@@ -84,6 +84,14 @@ interface FieldView extends FieldConfig {
                     <mat-error>{{ errorFor(f) }}</mat-error>
                   </mat-form-field>
                 }
+                @case ('cashflows') {
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ f.label }}</mat-label>
+                    <textarea matInput rows="3" [formControlName]="f.key" [placeholder]="f.placeholder ?? ''"></textarea>
+                    @if (f.hint) { <mat-hint>{{ f.hint }}</mat-hint> }
+                    <mat-error>{{ errorFor(f) }}</mat-error>
+                  </mat-form-field>
+                }
                 @default {
                   <mat-form-field appearance="outline">
                     <mat-label>{{ f.label }}</mat-label>
@@ -149,7 +157,13 @@ export class EntityFormDialog {
   constructor() {
     const value = this.data.value ?? {};
     for (const f of this.data.fields) {
-      const initial = value[f.key] ?? f.defaultValue ?? (f.type === 'toggle' ? false : null);
+      const rawInitial = value[f.key] ?? f.defaultValue ?? (f.type === 'toggle' ? false : null);
+      const initial = f.type === 'cashflows' && Array.isArray(rawInitial)
+        ? rawInitial.map((entry) => {
+          const transaction = entry as { date?: string; amount?: number };
+          return transaction.date && transaction.amount !== undefined ? `${transaction.date}, ${transaction.amount}` : '';
+        }).filter(Boolean).join('\n')
+        : rawInitial;
       this.form.addControl(f.key, new FormControl(initial, this.validators(f)));
     }
   }
@@ -177,6 +191,7 @@ export class EntityFormDialog {
     if (c?.hasError('min')) return `Minimum is ${f.min}`;
     if (c?.hasError('max')) return `Maximum is ${f.max}`;
     if (c?.hasError('pattern')) return `Invalid ${f.label.toLowerCase()}`;
+    if (c?.hasError('cashflows')) return 'Enter one YYYY-MM-DD, amount pair per line';
     if (c?.hasError('email')) return 'Invalid email address';
     return '';
   }
@@ -190,6 +205,14 @@ export class EntityFormDialog {
     for (const f of this.data.fields) {
       let v = this.form.controls[f.key].value;
       if (['number', 'currency', 'percent'].includes(f.type)) v = v === null || v === '' ? 0 : Number(v);
+      else if (f.type === 'cashflows') {
+        v = String(v ?? '').trim()
+          ? String(v).split(/\r?\n/).map((line) => {
+            const [date, amount] = line.split(',').map((part) => part.trim());
+            return { date, amount: Number(amount) };
+          })
+          : [];
+      }
       else if (typeof v === 'string') v = v.trim();
       if (v !== null && v !== '') out[f.key] = v;
     }
@@ -203,6 +226,21 @@ export class EntityFormDialog {
     if (f.max !== undefined) v.push(Validators.max(f.max));
     if (f.pattern) v.push(Validators.pattern(f.pattern));
     if (f.type === 'email') v.push(Validators.email);
+    if (f.type === 'cashflows') {
+      v.push((control) => {
+        const value = String(control.value ?? '').trim();
+        if (!value) return null;
+        const valid = value.split(/\r?\n/).every((line) => {
+          const match = /^(\d{4}-\d{2}-\d{2})\s*,\s*(\d+(?:\.\d{1,2})?)$/.exec(line.trim());
+          if (!match) return false;
+          const [year, month, day] = match[1].split('-').map(Number);
+          const parsed = new Date(year, month - 1, day);
+          return parsed.getFullYear() === year && parsed.getMonth() === month - 1
+            && parsed.getDate() === day && Number(match[2]) > 0;
+        });
+        return valid ? null : { cashflows: true };
+      });
+    }
     if (['currency', 'number'].includes(f.type) && f.min === undefined) v.push(Validators.min(0));
     return v;
   }

@@ -11,7 +11,6 @@ export type CollectionName =
   | 'assets'
   | 'properties'
   | 'agricultureLands'
-  | 'farms'
   | 'livestock'
   | 'lending'
   | 'stocks'

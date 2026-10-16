@@ -26,7 +26,7 @@ export class LoginPage {
 
   protected readonly highlights = [
     { icon: 'account_balance', text: 'Stocks, MFs, FDs, gold, EPF/PPF/NPS & crypto' },
-    { icon: 'agriculture', text: 'Properties, agri-lands, farms & livestock' },
+    { icon: 'agriculture', text: 'Properties, agri-lands & livestock' },
     { icon: 'handshake', text: 'Private lending with flat, reducing & bullet interest' },
     { icon: 'local_fire_department', text: 'FIRE tracking & wealth projection simulator' },
   ];

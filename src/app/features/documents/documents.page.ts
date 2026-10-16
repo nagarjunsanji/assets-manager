@@ -58,7 +58,6 @@ export class DocumentsPage {
     switch (this.entityType()) {
       case 'Property': return d.properties.map((x) => ({ value: x.id, label: x.name }));
       case 'Agriculture': return d.agricultureLands.map((x) => ({ value: x.id, label: x.name }));
-      case 'Farm': return d.farms.map((x) => ({ value: x.id, label: x.name }));
       case 'Livestock': return d.livestock.map((x) => ({ value: x.id, label: `${x.breed} ${x.animalType}` }));
       case 'Insurance': return d.insurance.map((x) => ({ value: x.id, label: x.policyName }));
       case 'Lending': return d.lending.map((x) => ({ value: x.id, label: x.borrowerName }));

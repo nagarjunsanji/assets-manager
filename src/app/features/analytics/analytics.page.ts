@@ -39,7 +39,7 @@ import { ASSET_CLASS_COLORS } from '../../utilities/portfolio';
       <h2 class="section-title">Real & Business Assets</h2>
       <div class="chart-grid stagger">
         <app-chart-card title="8 · Agriculture Revenue" subtitle="Annual revenue & expenses per land" [options]="agriRevenue()" />
-        <app-chart-card title="9 · Farm Profitability" subtitle="Annual profit incl. livestock" [options]="farmProfit()" />
+        <app-chart-card title="9 · Livestock Profitability" subtitle="Annual profit by location" [options]="livestockProfit()" />
         <app-chart-card title="10 · Livestock Value Trend" subtitle="Herd value over time" [options]="livestockTrend()" />
         <app-chart-card title="11 · Property Appreciation" subtitle="% gain over purchase cost" [options]="propertyAppreciation()" />
       </div>
@@ -127,14 +127,14 @@ export class AnalyticsPage {
     ], { colors: ['#7BD88F', '#FF5C7A'] });
   });
 
-  protected readonly farmProfit = computed(() => {
-    const farms = this.p.farms.items();
+  protected readonly livestockProfit = computed(() => {
     const herd = this.p.livestock.items();
-    const profits = farms.map((f) => {
-      const m = herd.filter((l) => l.farmId === f.id).map(livestockMetrics);
-      return f.totalRevenue - f.totalExpense + sum(m, (x) => x.monthlyProfit) * 12;
+    const groups = new Map<string, number>();
+    herd.forEach((animal) => {
+      const location = animal.farmName || 'Unassigned';
+      groups.set(location, (groups.get(location) ?? 0) + livestockMetrics(animal).monthlyProfit * 12);
     });
-    return barChart(farms.map((f) => f.name), [{ name: 'Annual Profit', data: profits }], {
+    return barChart([...groups.keys()], [{ name: 'Annual Profit', data: [...groups.values()] }], {
       colors: ['#F5B942'], plotOptions: { bar: { borderRadius: 8, columnWidth: '35%', borderRadiusApplication: 'end' } },
     });
   });
