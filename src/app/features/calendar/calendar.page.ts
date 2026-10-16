@@ -119,15 +119,15 @@ function mondayStart(date: Date): Date {
                               <strong>{{ event.title }}</strong>
                               @if (event.subtitle) { <small>{{ event.subtitle }}</small> }
                             </td>
-                            <td>{{ fmt(event.amount) }}</td>
+                            <td>{{ amountLabel(event) }}</td>
                           </tr>
                         }
                       </tbody>
                       <tfoot>
-                        @if (cell.events.some(isCredit)) {
+                        @if (hasKnownAmount(cell, 'credit')) {
                           <tr class="credit-row"><th colspan="2">Total credits</th><th>{{ fmt(totalFor(cell, 'credit')) }}</th></tr>
                         }
-                        @if (cell.events.some(isDebit)) {
+                        @if (hasKnownAmount(cell, 'debit')) {
                           <tr class="debit-row"><th colspan="2">Total debits</th><th>{{ fmt(totalFor(cell, 'debit')) }}</th></tr>
                         }
                       </tfoot>
@@ -162,7 +162,7 @@ function mondayStart(date: Date): Date {
                 <strong>{{ event.title }}</strong>
                 <small>{{ event.subtitle }}</small>
               </span>
-              <strong class="event-amount">{{ event.direction === 'credit' ? '+' : '−' }}{{ fmt(event.amount) }}</strong>
+              <strong class="event-amount">{{ event.amountKnown === false ? 'Amount not provided' : (event.direction === 'credit' ? '+' : '−') + fmt(event.amount) }}</strong>
             </button>
           } @empty {
             <p class="muted empty-state">No payments or receipts are scheduled for this day.</p>
@@ -179,7 +179,10 @@ function mondayStart(date: Date): Date {
               </div>
               <button mat-icon-button aria-label="Close schedule" (click)="selectedEvent.set(null)"><mat-icon>close</mat-icon></button>
             </header>
-            <p class="schedule-note">Choose the monthly payout or debit date on the lending or liability record. Insurance premiums use the next premium payment date and selected frequency.</p>
+            <p class="schedule-note">Choose the monthly payout or debit date on the lending or liability record. Insurance premiums use the configured payment day and frequency; maturity dates are scheduled as credits.</p>
+            @if (selected.maturityPayout && selected.amountKnown === false) {
+              <p class="schedule-note">Maturity payout amount has not been provided. Add the expected payout in the insurance record to include it in credit totals.</p>
+            } @else {
             <div class="table-scroll">
               <table>
                 <thead>
@@ -206,8 +209,9 @@ function mondayStart(date: Date): Date {
                     </tr>
                   }
                 </tbody>
-              </table>
-            </div>
+                </table>
+              </div>
+              }
           } @else {
             <div class="schedule-placeholder">
               <mat-icon>event_note</mat-icon>
@@ -280,8 +284,8 @@ export class CalendarPage {
       const date = new Date(`${event.date}T00:00:00`);
       return date.getMonth() === month.getMonth() && date.getFullYear() === month.getFullYear();
     });
-    const credits = monthly.filter((event) => event.direction === 'credit');
-    const debits = monthly.filter((event) => event.direction === 'debit');
+    const credits = monthly.filter((event) => event.direction === 'credit' && event.amountKnown !== false);
+    const debits = monthly.filter((event) => event.direction === 'debit' && event.amountKnown !== false);
     const creditTotal = credits.reduce((total, event) => total + event.amount, 0);
     const debitTotal = debits.reduce((total, event) => total + event.amount, 0);
     return {
@@ -301,7 +305,9 @@ export class CalendarPage {
       : event.liability
         ? liabilitySchedule(event.liability)
         : event.insurance
-          ? insuranceSchedule(event.insurance, new Date(), new Date(new Date().getFullYear() + 5, new Date().getMonth(), new Date().getDate()))
+          ? event.maturityPayout
+            ? [event.schedule]
+            : insuranceSchedule(event.insurance, new Date(), new Date(new Date().getFullYear() + 5, new Date().getMonth(), new Date().getDate()))
           : [];
   });
 
@@ -321,14 +327,22 @@ export class CalendarPage {
 
   protected totalFor(cell: CalendarCell, direction: CashflowDirection): number {
     return cell.events
-      .filter((event) => event.direction === direction)
+      .filter((event) => event.direction === direction && event.amountKnown !== false)
       .reduce((sum, event) => sum + event.amount, 0);
+  }
+
+  protected hasKnownAmount(cell: CalendarCell, direction: CashflowDirection): boolean {
+    return cell.events.some((event) => event.direction === direction && event.amountKnown !== false);
+  }
+
+  protected amountLabel(event: CashflowEvent): string {
+    return event.amountKnown === false ? 'Amount not provided' : this.fmt(event.amount);
   }
 
   protected cellAriaLabel(cell: CalendarCell): string {
     if (!cell.events.length) return `${cell.date}, no scheduled cashflow items`;
-    const credits = cell.events.filter((event) => event.direction === 'credit');
-    const debits = cell.events.filter((event) => event.direction === 'debit');
+    const credits = cell.events.filter((event) => event.direction === 'credit' && event.amountKnown !== false);
+    const debits = cell.events.filter((event) => event.direction === 'debit' && event.amountKnown !== false);
     const creditTotal = credits.reduce((sum, event) => sum + event.amount, 0);
     const debitTotal = debits.reduce((sum, event) => sum + event.amount, 0);
     return [
@@ -381,7 +395,7 @@ export class CalendarPage {
       ? `${event.lending.loanName || event.lending.borrowerName} · ${event.lending.interestType} schedule`
       : event.liability
         ? `${event.liability.name} · EMI schedule`
-        : `${event.insurance?.policyName ?? 'Insurance'} · Premium schedule`;
+        : `${event.insurance?.policyName ?? 'Insurance'} · ${event.maturityPayout ? 'Maturity payout' : 'Premium schedule'}`;
   }
 
   protected scheduleDescription(event: CashflowEvent): string {
@@ -390,6 +404,11 @@ export class CalendarPage {
     const liability = event.liability;
     if (liability) return `${liability.lender} · ${liability.interestRate}% annual rate · ${liability.tenureMonths} months`;
     const policy = event.insurance;
+    if (event.maturityPayout) {
+      return policy
+        ? `${policy.provider} · Matures ${this.formatDate(event.date)} · ${event.amountKnown === false ? 'Amount not provided' : this.fmt(event.amount)}`
+        : '';
+    }
     return policy ? `${policy.provider} · ${policy.premiumFrequency} premium${policy.paymentAccount ? ` · Paid from ${policy.paymentAccount}` : ''}` : '';
   }
 

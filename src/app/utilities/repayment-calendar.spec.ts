@@ -40,9 +40,9 @@ describe('repayment calendar', () => {
     coverage: 1_000_000,
     premium: 12_000,
     premiumFrequency: 'Monthly',
-    premiumPaymentDate: '2025-01-31',
+    premiumPaymentDay: 5,
+    startDate: '2025-01-31',
     paymentAccount: 'ICICI Bank',
-    renewalDate: '2026-01-31',
   };
 
   it('generates open-ended lending receipts beyond the default schedule horizon', () => {
@@ -120,10 +120,67 @@ describe('repayment calendar', () => {
     expect(far.length).toBeGreaterThan(near.length);
   });
 
-  it('schedules recurring insurance premiums from the configured payment date', () => {
-    const rows = insuranceSchedule(insurance, new Date(2025, 1, 1), new Date(2025, 2, 31));
+  it('schedules recurring insurance premiums from policy start using the configured payment day', () => {
+    const rows = insuranceSchedule(insurance, new Date(2025, 0, 1), new Date(2025, 2, 31));
 
-    expect(rows.map(({ date }) => date)).toEqual(['2025-02-28', '2025-03-31']);
+    expect(rows.map(({ date }) => date)).toEqual(['2025-02-05', '2025-03-05']);
+  });
+
+  it('does not schedule premiums after the policy maturity date', () => {
+    const rows = insuranceSchedule(
+      { ...insurance, maturityDate: '2025-03-10' },
+      new Date(2025, 1, 1),
+      new Date(2025, 3, 30),
+    );
+
+    expect(rows.map(({ date }) => date)).toEqual(['2025-02-05', '2025-03-05']);
+  });
+
+  it('does not schedule the first premium before the policy start date', () => {
+    const rows = insuranceSchedule(
+      { ...insurance, startDate: '2025-01-20', premiumPaymentDay: 5 },
+      new Date(2025, 0, 1),
+      new Date(2025, 1, 28),
+    );
+
+    expect(rows.map(({ date }) => date)).toEqual(['2025-02-05']);
+  });
+
+  it('adds maturity payouts as credits, showing an unknown amount without using coverage as a guess', () => {
+    const policy: Insurance = {
+      ...insurance,
+      maturityDate: '2025-02-20',
+    };
+    const events = cashflowEvents(
+      [],
+      [],
+      new Date(2025, 1, 1),
+      new Date(2025, 1, 28),
+      new Date(2025, 0, 1),
+      [policy],
+    );
+    const maturity = events.find((event) => event.maturityPayout);
+
+    expect(maturity).toBeDefined();
+    expect(maturity?.date).toBe('2025-02-20');
+    expect(maturity?.direction).toBe('credit');
+    expect(maturity?.amount).toBe(0);
+    expect(maturity?.amountKnown).toBe(false);
+  });
+
+  it('uses the entered maturity payout amount in the calendar credit', () => {
+    const events = cashflowEvents(
+      [],
+      [],
+      new Date(2025, 1, 1),
+      new Date(2025, 1, 28),
+      new Date(2025, 0, 1),
+      [{ ...insurance, maturityDate: '2025-02-20', maturityPayoutAmount: 125_000 }],
+    );
+    const maturity = events.find((event) => event.maturityPayout);
+
+    expect(maturity?.amount).toBe(125_000);
+    expect(maturity?.amountKnown).toBe(true);
   });
 
   it('adds insurance premiums as debits with account details', () => {

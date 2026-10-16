@@ -34,23 +34,9 @@ export class NotificationService {
         title: days === 0
           ? `${isCredit ? 'Credit expected' : 'Payment due'} today`
           : `${isCredit ? 'Credit expected' : 'Payment due'} in ${days} ${days === 1 ? 'day' : 'days'}`,
-        message: `${event.title} · ${formatInr(event.amount)} · ${formatDate(event.date)} · ${event.subtitle}`,
+        message: `${event.title} · ${event.amountKnown === false ? 'Amount not provided' : formatInr(event.amount)} · ${formatDate(event.date)} · ${event.subtitle}`,
         date: event.date,
         route: '/calendar',
-      });
-    }
-
-    for (const p of d.insurance) {
-      const days = daysUntil(p.renewalDate);
-      if (days === null || days > 45) continue;
-      out.push({
-        id: `ins-${p.id}-${p.renewalDate}`,
-        severity: days < 0 ? 'critical' : days <= 15 ? 'warning' : 'info',
-        icon: 'health_and_safety',
-        title: days < 0 ? `${p.policyName} renewal overdue` : `${p.policyName} renews in ${days} days`,
-        message: `${p.provider} · Premium ${formatInr(p.premium)} · ${formatDate(p.renewalDate)}`,
-        date: p.renewalDate,
-        route: '/insurance',
       });
     }
 

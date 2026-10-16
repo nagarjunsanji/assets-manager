@@ -25,6 +25,8 @@ export interface CashflowEvent {
   lending?: Lending;
   liability?: Liability;
   insurance?: Insurance;
+  maturityPayout?: boolean;
+  amountKnown?: boolean;
 }
 
 function parseIsoDate(value: string): Date {
@@ -46,10 +48,10 @@ function scheduledDate(startDate: string, period: number, paymentDay = 1): Date 
   return new Date(monthStart.getFullYear(), monthStart.getMonth(), Math.min(Math.max(paymentDay, 1), lastDay));
 }
 
-function addMonthsFromAnchor(anchor: Date, months: number): Date {
+function addMonthsFromAnchor(anchor: Date, months: number, paymentDay = anchor.getDate()): Date {
   const monthStart = new Date(anchor.getFullYear(), anchor.getMonth() + months, 1);
   const lastDay = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
-  return new Date(monthStart.getFullYear(), monthStart.getMonth(), Math.min(anchor.getDate(), lastDay));
+  return new Date(monthStart.getFullYear(), monthStart.getMonth(), Math.min(Math.max(paymentDay, 1), lastDay));
 }
 
 function monthsBetween(from: Date, to: Date): number {
@@ -147,7 +149,7 @@ export function liabilitySchedule(liability: Liability, asOf = new Date()): Repa
 }
 
 export function insuranceSchedule(policy: Insurance, from: Date, to: Date): RepaymentRow[] {
-  if (!policy.premiumPaymentDate || policy.premium <= 0) return [];
+  if (!policy.startDate || policy.premium <= 0) return [];
   const intervalMonths = {
     Monthly: 1,
     Quarterly: 3,
@@ -155,16 +157,20 @@ export function insuranceSchedule(policy: Insurance, from: Date, to: Date): Repa
     Yearly: 12,
     Single: 0,
   }[policy.premiumFrequency];
-  const anchor = parseIsoDate(policy.premiumPaymentDate);
+  const anchor = parseIsoDate(policy.startDate);
+  const paymentDay = policy.premiumPaymentDay ?? anchor.getDate();
+  const firstPaymentIndex = intervalMonths && addMonthsFromAnchor(anchor, 0, paymentDay) < anchor ? 1 : 0;
   const startPeriod = intervalMonths
-    ? Math.max(0, Math.floor(monthsBetween(anchor, from) / intervalMonths) - 1)
+    ? Math.max(firstPaymentIndex, Math.floor(monthsBetween(anchor, from) / intervalMonths) - 1)
     : 0;
   const rows: RepaymentRow[] = [];
   const periods = intervalMonths ? 1200 : 1;
 
   for (let index = startPeriod; index < periods; index++) {
-    const date = intervalMonths ? addMonthsFromAnchor(anchor, index * intervalMonths) : anchor;
+    const date = intervalMonths ? addMonthsFromAnchor(anchor, index * intervalMonths, paymentDay) : anchor;
     if (date > to) break;
+    if (date < anchor) continue;
+    if (policy.maturityDate && date > parseIsoDate(policy.maturityDate)) break;
     if (date < from) continue;
     rows.push({
       date: isoDate(date),
@@ -177,6 +183,21 @@ export function insuranceSchedule(policy: Insurance, from: Date, to: Date): Repa
     });
   }
   return rows;
+}
+
+export function insuranceMaturitySchedule(policy: Insurance, from: Date, to: Date, asOf = new Date()): RepaymentRow[] {
+  if (!policy.maturityDate) return [];
+  const date = parseIsoDate(policy.maturityDate);
+  if (date < from || date > to) return [];
+  return [{
+    date: policy.maturityDate,
+    installment: 1,
+    payment: policy.maturityPayoutAmount ?? 0,
+    principal: policy.maturityPayoutAmount ?? 0,
+    interest: 0,
+    balance: 0,
+    status: statusFor(1, date, undefined, asOf),
+  }];
 }
 
 export function cashflowEvents(
@@ -242,6 +263,20 @@ export function cashflowEvents(
         subtitle: [policy.provider, policy.paymentAccount, policy.premiumFrequency, schedule.status].filter(Boolean).join(' · '),
         schedule,
         insurance: policy,
+      });
+    }
+    for (const schedule of insuranceMaturitySchedule(policy, fromDate, toDate, asOf)) {
+      events.push({
+        id: `insurance-maturity-${policy.id}`,
+        date: schedule.date,
+        direction: 'credit',
+        amount: schedule.payment,
+        title: `${policy.policyName} · Maturity payout`,
+        subtitle: [policy.provider, schedule.payment > 0 ? 'Insurance maturity' : 'Maturity amount not provided'].filter(Boolean).join(' · '),
+        schedule,
+        insurance: policy,
+        maturityPayout: true,
+        amountKnown: policy.maturityPayoutAmount != null,
       });
     }
   }

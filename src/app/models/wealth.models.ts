@@ -188,11 +188,12 @@ export interface Insurance extends Entity {
   coverage: number;
   premium: number;
   premiumFrequency: (typeof PREMIUM_FREQUENCY)[number];
-  /** Next premium payment date; recurring dates are generated from this date. */
-  premiumPaymentDate?: IsoDate;
+  /** Day of month for recurring premium payments; defaults to the policy start date's day. */
+  premiumPaymentDay?: number;
   paymentAccount?: string;
   startDate?: IsoDate;
-  renewalDate: IsoDate;
+  maturityDate?: IsoDate;
+  maturityPayoutAmount?: number;
   nominee?: string;
   /** One covered person per line, optionally including their relationship to the policyholder. */
   insuredPeople?: string;

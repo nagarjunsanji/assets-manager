@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { INSURANCE_CATEGORIES, Insurance, PREMIUM_FREQUENCY } from '../../models/wealth.models';
+import { INSURANCE_CATEGORIES, Insurance, PAYMENT_DAY_OPTIONS, PREMIUM_FREQUENCY } from '../../models/wealth.models';
 import { InsuranceRepositoryService } from '../../services/repositories/repositories';
 import { ChartCard } from '../../shared/components/chart-card';
 import { ColumnConfig } from '../../shared/components/data-table';
@@ -10,6 +11,7 @@ import { FieldConfig } from '../../shared/dialogs/entity-form-dialog';
 import { barChart, donutChart } from '../../utilities/chart-builders';
 import { daysUntil, premiumMonthly, sum } from '../../utilities/finance';
 import { formatDate, formatInr } from '../../utilities/format';
+import { InsuranceDetailsDialog, InsuranceDetailsDialogData } from './insurance-details-dialog';
 
 const FIELDS: FieldConfig[] = [
   { key: 'policyName', label: 'Policy name', type: 'text', required: true },
@@ -19,10 +21,11 @@ const FIELDS: FieldConfig[] = [
   { key: 'coverage', label: 'Sum assured / coverage', type: 'currency', required: true },
   { key: 'premium', label: 'Premium', type: 'currency', required: true },
   { key: 'premiumFrequency', label: 'Premium frequency', type: 'select', options: PREMIUM_FREQUENCY, defaultValue: 'Yearly' },
-  { key: 'renewalDate', label: 'Renewal date', type: 'date', required: true },
-  { key: 'premiumPaymentDate', label: 'Next premium payment date', type: 'date', section: 'Premium payment', hint: 'Set this to show premium debits on the calendar; recurring dates follow the selected frequency' },
+  { key: 'premiumPaymentDay', label: 'Premium payment day', type: 'select', options: PAYMENT_DAY_OPTIONS, required: true, section: 'Premium payment', hint: 'For recurring premiums, the selected day is used in each payment month' },
   { key: 'paymentAccount', label: 'Debit bank / account', type: 'text', hint: 'Account from which the premium is paid' },
-  { key: 'startDate', label: 'Policy start date', type: 'date' },
+  { key: 'startDate', label: 'Policy start date', type: 'date', required: true },
+  { key: 'maturityDate', label: 'Maturity date', type: 'date', section: 'Maturity payout', hint: 'Adds a maturity credit to the cashflow calendar' },
+  { key: 'maturityPayoutAmount', label: 'Expected maturity payout', type: 'currency', min: 0, hint: 'Optional; the calendar will show the maturity date and mark the amount as not provided if blank' },
   {
     key: 'insuredPeople',
     label: 'People covered',
@@ -36,8 +39,8 @@ const FIELDS: FieldConfig[] = [
   { key: 'notes', label: 'Notes', type: 'textarea' },
 ];
 
-function renewalTone(p: Insurance): 'danger' | 'warning' | 'info' | 'success' {
-  const d = daysUntil(p.renewalDate) ?? 999;
+function maturityTone(p: Insurance): 'danger' | 'warning' | 'info' | 'success' {
+  const d = daysUntil(p.maturityDate) ?? 999;
   return d < 0 ? 'danger' : d <= 15 ? 'warning' : d <= 45 ? 'info' : 'success';
 }
 
@@ -46,23 +49,24 @@ function renewalTone(p: Insurance): 'danger' | 'warning' | 'info' | 'success' {
   imports: [EntityPage, StatCard, ChartCard, MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-entity-page title="Insurance" subtitle="Life, health, vehicle, property and livestock protection with renewal alerts"
-      icon="health_and_safety" entityLabel="Policy" [repo]="repo" [fields]="fields" [columns]="columns">
+    <app-entity-page title="Insurance" subtitle="Life, health, vehicle, property and livestock protection with premium and maturity schedules"
+      icon="health_and_safety" entityLabel="Policy" [repo]="repo" [fields]="fields" [columns]="columns"
+      [rowClickEnabled]="true" (rowClick)="showDetails($event)">
       <ng-container kpis>
         <app-stat-card label="Total Coverage" [value]="kpi().coverage" icon="shield" accent="primary" [hint]="repo.count() + ' policies'" />
         <app-stat-card label="Life Cover" [value]="kpi().life" icon="favorite" accent="danger" />
         <app-stat-card label="Annual Premium" [value]="kpi().annualPremium" icon="receipt_long" accent="gold" [hint]="fmt(kpi().annualPremium / 12) + ' / month'" />
-        <app-stat-card label="Renewals (45 days)" [value]="upcoming().length" format="number" icon="event" accent="warning" />
+        <app-stat-card label="Maturities (45 days)" [value]="upcoming().length" format="number" icon="event" accent="warning" />
       </ng-container>
       @if (upcoming().length) {
         <section class="glass-card renewals">
-          <h3><mat-icon>notifications_active</mat-icon> Upcoming renewals</h3>
+          <h3><mat-icon>notifications_active</mat-icon> Upcoming maturities</h3>
           <div class="renewal-list">
             @for (p of upcoming(); track p.id) {
               <div class="renewal" [class]="'tone-' + tone(p)">
                 <strong>{{ p.policyName }}</strong>
                 <small>{{ p.provider }} · {{ fmt(p.premium) }}</small>
-                <span class="when">{{ label(p) }} · {{ date(p.renewalDate) }}</span>
+                <span class="when">{{ label(p) }} · {{ date(p.maturityDate) }}</span>
               </div>
             }
           </div>
@@ -89,10 +93,11 @@ function renewalTone(p: Insurance): 'danger' | 'warning' | 'info' | 'success' {
 })
 export class InsurancePage {
   protected readonly repo = inject(InsuranceRepositoryService);
+  private readonly dialog = inject(MatDialog);
   protected readonly fields = FIELDS;
   protected readonly fmt = formatInr;
   protected readonly date = formatDate;
-  protected readonly tone = renewalTone;
+  protected readonly tone = maturityTone;
   protected readonly columns: ColumnConfig<Insurance>[] = [
     {
       key: 'policyName',
@@ -108,13 +113,15 @@ export class InsurancePage {
     { key: 'coverage', label: 'Coverage', type: 'currency' },
     { key: 'premium', label: 'Premium', type: 'currency', },
     { key: 'premiumFrequency', label: 'Frequency' },
-    { key: 'premiumPaymentDate', label: 'Next premium', type: 'date' },
-    { key: 'renewalDate', label: 'Renewal', type: 'date' },
-    { key: 'status', label: 'Status', type: 'chip', value: (p) => this.label(p), chipTone: renewalTone },
+    { key: 'premiumPaymentDay', label: 'Payment day', type: 'number', value: (p) => p.premiumPaymentDay ?? (p.startDate ? Number(p.startDate.slice(-2)) : '—') },
+    { key: 'maturityDate', label: 'Maturity', type: 'date' },
+    { key: 'status', label: 'Maturity status', type: 'chip', value: (p) => this.label(p), chipTone: maturityTone },
   ];
 
   protected readonly upcoming = computed(() =>
-    this.repo.items().filter((p) => (daysUntil(p.renewalDate) ?? 999) <= 45).sort((a, b) => a.renewalDate.localeCompare(b.renewalDate)),
+    this.repo.items()
+      .filter((p) => p.maturityDate && (daysUntil(p.maturityDate) ?? 999) <= 45)
+      .sort((a, b) => (a.maturityDate ?? '').localeCompare(b.maturityDate ?? '')),
   );
 
   protected readonly kpi = computed(() => {
@@ -140,7 +147,16 @@ export class InsurancePage {
   });
 
   protected label(p: Insurance): string {
-    const d = daysUntil(p.renewalDate) ?? 0;
-    return d < 0 ? `Overdue ${-d}d` : d === 0 ? 'Due today' : `In ${d} days`;
+    const d = daysUntil(p.maturityDate) ?? 0;
+    return !p.maturityDate ? 'No maturity date' : d < 0 ? `Matured ${-d}d ago` : d === 0 ? 'Matures today' : `In ${d} days`;
+  }
+
+  protected showDetails(policy: Insurance): void {
+    this.dialog.open<InsuranceDetailsDialog, InsuranceDetailsDialogData>(InsuranceDetailsDialog, {
+      data: { policy },
+      width: 'min(860px, 96vw)',
+      maxWidth: '96vw',
+      autoFocus: false,
+    });
   }
 }
