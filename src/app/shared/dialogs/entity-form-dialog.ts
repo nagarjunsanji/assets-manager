@@ -26,6 +26,7 @@ export interface FieldConfig {
   span?: 1 | 2;
   section?: string;
   defaultValue?: unknown;
+  visibleWhen?: (values: Record<string, unknown>) => boolean;
 }
 
 export interface EntityFormDialogData {
@@ -57,11 +58,12 @@ interface FieldView extends FieldConfig {
       <mat-dialog-content>
         <div class="form-grid">
           @for (f of fields(); track f.key) {
-            @if (f.showSection) {
-              <h4 class="section">{{ f.section }}</h4>
-            }
-            <div class="cell" [class.span-2]="f.span === 2 || f.type === 'textarea'">
-              @switch (f.type) {
+            @if (isVisible(f)) {
+              @if (f.showSection) {
+                <h4 class="section">{{ f.section }}</h4>
+              }
+              <div class="cell" [class.span-2]="f.span === 2 || f.type === 'textarea'">
+                @switch (f.type) {
                 @case ('select') {
                   <mat-form-field appearance="outline">
                     <mat-label>{{ f.label }}</mat-label>
@@ -110,8 +112,9 @@ interface FieldView extends FieldConfig {
                     <mat-error>{{ errorFor(f) }}</mat-error>
                   </mat-form-field>
                 }
-              }
-            </div>
+                }
+              </div>
+            }
           }
         </div>
       </mat-dialog-content>
@@ -185,6 +188,10 @@ export class EntityFormDialog {
     }
   }
 
+  protected isVisible(f: FieldConfig): boolean {
+    return f.visibleWhen?.(this.form.getRawValue()) ?? true;
+  }
+
   protected errorFor(f: FieldConfig): string {
     const c = this.form.controls[f.key];
     if (c?.hasError('required')) return `${f.label} is required`;
@@ -203,6 +210,7 @@ export class EntityFormDialog {
     }
     const out: Record<string, unknown> = {};
     for (const f of this.data.fields) {
+      if (!this.isVisible(f)) continue;
       let v = this.form.controls[f.key].value;
       if (['number', 'currency', 'percent'].includes(f.type)) v = v === null || v === '' ? 0 : Number(v);
       else if (f.type === 'cashflows') {

@@ -64,6 +64,10 @@ function statusFor(period: number, date: Date, paymentsMade: number | undefined,
   return date < today ? 'Unrecorded' : 'Upcoming';
 }
 
+export function insuranceEffectiveMaturityDate(policy: Insurance): string | undefined {
+  return policy.maturityDate ?? policy.endDate;
+}
+
 export function lendingSchedule(loan: Lending, asOf = new Date(), through = asOf): RepaymentRow[] {
   const start = parseIsoDate(loan.startDate);
   const end = loan.endDate ? parseIsoDate(loan.endDate) : null;
@@ -159,6 +163,7 @@ export function insuranceSchedule(policy: Insurance, from: Date, to: Date): Repa
   }[policy.premiumFrequency];
   const anchor = parseIsoDate(policy.startDate);
   const paymentDay = policy.premiumPaymentDay ?? anchor.getDate();
+  const policyEnd = insuranceEffectiveMaturityDate(policy);
   const firstPaymentIndex = intervalMonths && addMonthsFromAnchor(anchor, 0, paymentDay) < anchor ? 1 : 0;
   const startPeriod = intervalMonths
     ? Math.max(firstPaymentIndex, Math.floor(monthsBetween(anchor, from) / intervalMonths) - 1)
@@ -170,7 +175,7 @@ export function insuranceSchedule(policy: Insurance, from: Date, to: Date): Repa
     const date = intervalMonths ? addMonthsFromAnchor(anchor, index * intervalMonths, paymentDay) : anchor;
     if (date > to) break;
     if (date < anchor) continue;
-    if (policy.maturityDate && date > parseIsoDate(policy.maturityDate)) break;
+    if (policyEnd && date > parseIsoDate(policyEnd)) break;
     if (date < from) continue;
     rows.push({
       date: isoDate(date),
@@ -186,11 +191,12 @@ export function insuranceSchedule(policy: Insurance, from: Date, to: Date): Repa
 }
 
 export function insuranceMaturitySchedule(policy: Insurance, from: Date, to: Date, asOf = new Date()): RepaymentRow[] {
-  if (!policy.maturityDate) return [];
-  const date = parseIsoDate(policy.maturityDate);
+  const maturityDate = insuranceEffectiveMaturityDate(policy);
+  if (!maturityDate || policy.category === 'Health') return [];
+  const date = parseIsoDate(maturityDate);
   if (date < from || date > to) return [];
   return [{
-    date: policy.maturityDate,
+    date: maturityDate,
     installment: 1,
     payment: policy.maturityPayoutAmount ?? 0,
     principal: policy.maturityPayoutAmount ?? 0,

@@ -29,9 +29,9 @@ export interface InsuranceDetailsDialogData {
         <article><small>Coverage / sum assured</small><strong>{{ fmt(data.policy.coverage) }}</strong></article>
         <article><small>Premium</small><strong>{{ fmt(data.policy.premium) }} · {{ data.policy.premiumFrequency }}</strong></article>
         <article><small>Policy start date</small><strong>{{ date(data.policy.startDate) }}</strong></article>
-        <article><small>Payment day</small><strong>{{ data.policy.premiumPaymentDay ?? dayFromDate(data.policy.startDate) ?? '—' }}{{ data.policy.premiumPaymentDay || dayFromDate(data.policy.startDate) ? ' of each applicable month' : '' }}</strong></article>
+        <article><small>Premium schedule</small><strong>{{ paymentScheduleLabel() }}</strong></article>
         <article><small>Debit account</small><strong>{{ data.policy.paymentAccount || '—' }}</strong></article>
-        <article><small>Maturity date</small><strong>{{ date(data.policy.maturityDate) }}</strong></article>
+        <article><small>Effective policy end / maturity</small><strong>{{ date(data.policy.maturityDate || data.policy.endDate) }}</strong></article>
         <article><small>Expected maturity payout</small><strong>{{ data.policy.maturityPayoutAmount == null ? 'Not provided' : fmt(data.policy.maturityPayoutAmount) }}</strong></article>
         <article><small>Nominee</small><strong>{{ data.policy.nominee || '—' }}</strong></article>
         @if (data.policy.insuredAsset) {
@@ -74,5 +74,27 @@ export class InsuranceDetailsDialog {
 
   protected dayFromDate(value: string | undefined): number | null {
     return value ? Number(value.slice(-2)) : null;
+  }
+
+  protected paymentScheduleLabel(): string {
+    const policy = this.data.policy;
+    if (policy.premiumFrequency === 'Single') return policy.startDate ? `One-time on ${this.date(policy.startDate)}` : 'One-time';
+    const day = policy.premiumPaymentDay ?? this.dayFromDate(policy.startDate);
+    if (day === null) return 'Policy start date not provided';
+    if (!policy.startDate) return `Day ${day} · ${policy.premiumFrequency}`;
+    const month = new Date(`${policy.startDate}T00:00:00`).toLocaleDateString('en-IN', { month: 'long' });
+    const dayLabel = `Day ${day}`;
+    switch (policy.premiumFrequency) {
+      case 'Monthly':
+        return `${dayLabel} every month`;
+      case 'Quarterly':
+        return `${dayLabel} every 3 months from ${month}`;
+      case 'Half-Yearly':
+        return `${dayLabel} every 6 months from ${month}`;
+      case 'Yearly':
+        return `${dayLabel} every year in ${month}`;
+      default:
+        return policy.premiumFrequency;
+    }
   }
 }

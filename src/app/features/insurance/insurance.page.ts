@@ -11,6 +11,7 @@ import { FieldConfig } from '../../shared/dialogs/entity-form-dialog';
 import { barChart, donutChart } from '../../utilities/chart-builders';
 import { daysUntil, premiumMonthly, sum } from '../../utilities/finance';
 import { formatDate, formatInr } from '../../utilities/format';
+import { insuranceEffectiveMaturityDate } from '../../utilities/repayment-calendar';
 import { InsuranceDetailsDialog, InsuranceDetailsDialogData } from './insurance-details-dialog';
 
 const FIELDS: FieldConfig[] = [
@@ -20,12 +21,35 @@ const FIELDS: FieldConfig[] = [
   { key: 'category', label: 'Category', type: 'select', options: INSURANCE_CATEGORIES, required: true },
   { key: 'coverage', label: 'Sum assured / coverage', type: 'currency', required: true },
   { key: 'premium', label: 'Premium', type: 'currency', required: true },
-  { key: 'premiumFrequency', label: 'Premium frequency', type: 'select', options: PREMIUM_FREQUENCY, defaultValue: 'Yearly' },
-  { key: 'premiumPaymentDay', label: 'Premium payment day', type: 'select', options: PAYMENT_DAY_OPTIONS, required: true, section: 'Premium payment', hint: 'For recurring premiums, the selected day is used in each payment month' },
+  { key: 'premiumFrequency', label: 'Premium frequency', type: 'select', options: PREMIUM_FREQUENCY, defaultValue: 'Yearly', hint: 'The policy start date anchors the schedule: quarterly every 3 months, half-yearly every 6 months, yearly in the same month' },
+  {
+    key: 'premiumPaymentDay',
+    label: 'Premium debit day of month',
+    type: 'select',
+    options: PAYMENT_DAY_OPTIONS,
+    section: 'Premium payment',
+    hint: 'Used for each scheduled payment. For annual and multi-month frequencies, payment months follow the policy start month and selected frequency.',
+    visibleWhen: (values) => values['premiumFrequency'] !== 'Single',
+  },
   { key: 'paymentAccount', label: 'Debit bank / account', type: 'text', hint: 'Account from which the premium is paid' },
-  { key: 'startDate', label: 'Policy start date', type: 'date', required: true },
-  { key: 'maturityDate', label: 'Maturity date', type: 'date', section: 'Maturity payout', hint: 'Adds a maturity credit to the cashflow calendar' },
-  { key: 'maturityPayoutAmount', label: 'Expected maturity payout', type: 'currency', min: 0, hint: 'Optional; the calendar will show the maturity date and mark the amount as not provided if blank' },
+  { key: 'startDate', label: 'Policy start date', type: 'date', required: true, hint: 'This date anchors the premium schedule; the first payment is the first selected payment day on or after this date.' },
+  { key: 'endDate', label: 'Policy end date', type: 'date', hint: 'Optional. Premiums stop on this date; if omitted, the maturity date is used when provided.' },
+  {
+    key: 'maturityDate',
+    label: 'Maturity date',
+    type: 'date',
+    section: 'Maturity payout',
+    hint: 'Adds a maturity credit to the cashflow calendar',
+    visibleWhen: (values) => values['category'] !== 'Health',
+  },
+  {
+    key: 'maturityPayoutAmount',
+    label: 'Expected maturity payout',
+    type: 'currency',
+    min: 0,
+    hint: 'Optional; the calendar will show the maturity date and mark the amount as not provided if blank',
+    visibleWhen: (values) => values['category'] !== 'Health',
+  },
   {
     key: 'insuredPeople',
     label: 'People covered',
@@ -40,7 +64,7 @@ const FIELDS: FieldConfig[] = [
 ];
 
 function maturityTone(p: Insurance): 'danger' | 'warning' | 'info' | 'success' {
-  const d = daysUntil(p.maturityDate) ?? 999;
+  const d = daysUntil(insuranceEffectiveMaturityDate(p)) ?? 999;
   return d < 0 ? 'danger' : d <= 15 ? 'warning' : d <= 45 ? 'info' : 'success';
 }
 
@@ -66,7 +90,7 @@ function maturityTone(p: Insurance): 'danger' | 'warning' | 'info' | 'success' {
               <div class="renewal" [class]="'tone-' + tone(p)">
                 <strong>{{ p.policyName }}</strong>
                 <small>{{ p.provider }} · {{ fmt(p.premium) }}</small>
-                <span class="when">{{ label(p) }} · {{ date(p.maturityDate) }}</span>
+                <span class="when">{{ label(p) }} · {{ date(effectiveMaturityDate(p)) }}</span>
               </div>
             }
           </div>
@@ -113,15 +137,24 @@ export class InsurancePage {
     { key: 'coverage', label: 'Coverage', type: 'currency' },
     { key: 'premium', label: 'Premium', type: 'currency', },
     { key: 'premiumFrequency', label: 'Frequency' },
-    { key: 'premiumPaymentDay', label: 'Payment day', type: 'number', value: (p) => p.premiumPaymentDay ?? (p.startDate ? Number(p.startDate.slice(-2)) : '—') },
-    { key: 'maturityDate', label: 'Maturity', type: 'date' },
+    {
+      key: 'premiumPaymentDay',
+      label: 'Payment day',
+      value: (p) => p.premiumPaymentDay ?? (p.startDate ? `Day ${Number(p.startDate.slice(-2))}` : '—'),
+    },
+    {
+      key: 'maturityDate',
+      label: 'Maturity',
+      type: 'date',
+      value: (p) => insuranceEffectiveMaturityDate(p),
+    },
     { key: 'status', label: 'Maturity status', type: 'chip', value: (p) => this.label(p), chipTone: maturityTone },
   ];
 
   protected readonly upcoming = computed(() =>
     this.repo.items()
-      .filter((p) => p.maturityDate && (daysUntil(p.maturityDate) ?? 999) <= 45)
-      .sort((a, b) => (a.maturityDate ?? '').localeCompare(b.maturityDate ?? '')),
+      .filter((p) => p.category !== 'Health' && insuranceEffectiveMaturityDate(p) && (daysUntil(insuranceEffectiveMaturityDate(p)) ?? 999) <= 45)
+      .sort((a, b) => (insuranceEffectiveMaturityDate(a) ?? '').localeCompare(insuranceEffectiveMaturityDate(b) ?? '')),
   );
 
   protected readonly kpi = computed(() => {
@@ -147,8 +180,13 @@ export class InsurancePage {
   });
 
   protected label(p: Insurance): string {
-    const d = daysUntil(p.maturityDate) ?? 0;
-    return !p.maturityDate ? 'No maturity date' : d < 0 ? `Matured ${-d}d ago` : d === 0 ? 'Matures today' : `In ${d} days`;
+    const maturityDate = this.effectiveMaturityDate(p);
+    const d = daysUntil(maturityDate) ?? 0;
+    return !maturityDate ? 'No maturity date' : d < 0 ? `Matured ${-d}d ago` : d === 0 ? 'Matures today' : `In ${d} days`;
+  }
+
+  protected effectiveMaturityDate(policy: Insurance): string | undefined {
+    return insuranceEffectiveMaturityDate(policy);
   }
 
   protected showDetails(policy: Insurance): void {

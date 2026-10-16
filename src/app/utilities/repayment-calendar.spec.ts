@@ -1,6 +1,8 @@
 import { Insurance, Lending, Liability } from '../models/wealth.models';
 import { liabilityMetrics } from './finance';
-import { cashflowEvents, insuranceSchedule, lendingSchedule, liabilitySchedule } from './repayment-calendar';
+import {
+  cashflowEvents, insuranceEffectiveMaturityDate, insuranceSchedule, lendingSchedule, liabilitySchedule,
+} from './repayment-calendar';
 
 describe('repayment calendar', () => {
   const openEndedLending: Lending = {
@@ -136,6 +138,27 @@ describe('repayment calendar', () => {
     expect(rows.map(({ date }) => date)).toEqual(['2025-02-05', '2025-03-05']);
   });
 
+  it('prefers maturity date over policy end date for premium cutoff', () => {
+    const rows = insuranceSchedule(
+      {
+        ...insurance,
+        endDate: '2025-04-10',
+        maturityDate: '2025-06-10',
+      },
+      new Date(2025, 1, 1),
+      new Date(2025, 5, 30),
+    );
+
+    expect(rows.map(({ date }) => date)).toEqual([
+      '2025-02-05', '2025-03-05', '2025-04-05', '2025-05-05', '2025-06-05',
+    ]);
+  });
+
+  it('falls back to policy end date when maturity date is absent', () => {
+    expect(insuranceEffectiveMaturityDate({ ...insurance, endDate: '2025-04-10' })).toBe('2025-04-10');
+    expect(insuranceEffectiveMaturityDate({ ...insurance, maturityDate: '2025-06-10', endDate: '2025-04-10' })).toBe('2025-06-10');
+  });
+
   it('does not schedule the first premium before the policy start date', () => {
     const rows = insuranceSchedule(
       { ...insurance, startDate: '2025-01-20', premiumPaymentDay: 5 },
@@ -144,6 +167,36 @@ describe('repayment calendar', () => {
     );
 
     expect(rows.map(({ date }) => date)).toEqual(['2025-02-05']);
+  });
+
+  it('schedules annual premiums in the policy start month on the selected day', () => {
+    const rows = insuranceSchedule(
+      { ...insurance, premiumFrequency: 'Yearly', startDate: '2025-01-20', premiumPaymentDay: 5 },
+      new Date(2025, 0, 1),
+      new Date(2027, 0, 31),
+    );
+
+    expect(rows.map(({ date }) => date)).toEqual(['2026-01-05', '2027-01-05']);
+  });
+
+  it('schedules quarterly premiums every three months from the policy start month', () => {
+    const rows = insuranceSchedule(
+      { ...insurance, premiumFrequency: 'Quarterly', startDate: '2025-01-20', premiumPaymentDay: 5 },
+      new Date(2025, 0, 1),
+      new Date(2025, 9, 31),
+    );
+
+    expect(rows.map(({ date }) => date)).toEqual(['2025-04-05', '2025-07-05', '2025-10-05']);
+  });
+
+  it('clamps a selected payment day to the last day of shorter months', () => {
+    const rows = insuranceSchedule(
+      { ...insurance, startDate: '2025-01-31', premiumPaymentDay: 31 },
+      new Date(2025, 1, 1),
+      new Date(2025, 2, 31),
+    );
+
+    expect(rows.map(({ date }) => date)).toEqual(['2025-02-28', '2025-03-31']);
   });
 
   it('adds maturity payouts as credits, showing an unknown amount without using coverage as a guess', () => {
@@ -181,6 +234,19 @@ describe('repayment calendar', () => {
 
     expect(maturity?.amount).toBe(125_000);
     expect(maturity?.amountKnown).toBe(true);
+  });
+
+  it('uses policy end date as the maturity event date when maturity date is absent', () => {
+    const events = cashflowEvents(
+      [],
+      [],
+      new Date(2025, 3, 1),
+      new Date(2025, 3, 30),
+      new Date(2025, 0, 1),
+      [{ ...insurance, endDate: '2025-04-10' }],
+    );
+
+    expect(events.find((event) => event.maturityPayout)?.date).toBe('2025-04-10');
   });
 
   it('adds insurance premiums as debits with account details', () => {

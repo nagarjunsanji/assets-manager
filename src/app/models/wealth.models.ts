@@ -192,6 +192,7 @@ export interface Insurance extends Entity {
   premiumPaymentDay?: number;
   paymentAccount?: string;
   startDate?: IsoDate;
+  endDate?: IsoDate;
   maturityDate?: IsoDate;
   maturityPayoutAmount?: number;
   nominee?: string;
