@@ -21,7 +21,7 @@ const FIELDS: FieldConfig[] = [
     hint: 'Flat: simple · Reducing: EMI · Bullet: lump sum at end' },
   { key: 'loanType', label: 'Loan type', type: 'select', options: LENDING_TYPES, required: true, defaultValue: 'Personal' },
   { key: 'startDate', label: 'Start date', type: 'date', required: true },
-  { key: 'endDate', label: 'End date', type: 'date', required: true },
+  { key: 'endDate', label: 'End date', type: 'date', hint: 'Leave blank for an open-ended loan' },
   { key: 'paymentsMade', label: 'Installments paid', type: 'number', min: 0, hint: 'Optional; leave blank to calculate from loan dates' },
   { key: 'collateral', label: 'Collateral', type: 'text', span: 2 },
   { key: 'amountRecovered', label: 'Amount recovered to date', type: 'currency', defaultValue: 0, section: 'Recovery' },

@@ -95,7 +95,7 @@ export interface Lending extends Entity {
   interestType: InterestType;
   loanType: string;
   startDate: IsoDate;
-  endDate: IsoDate;
+  endDate?: IsoDate;
   paymentsMade?: number;
   collateral?: string;
   amountRecovered: number;

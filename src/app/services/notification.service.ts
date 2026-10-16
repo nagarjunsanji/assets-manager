@@ -44,7 +44,7 @@ export class NotificationService {
     }
 
     for (const loan of d.lending) {
-      if (loan.status === 'Closed') continue;
+      if (loan.status === 'Closed' || !loan.endDate) continue;
       const m = lendingMetrics(loan);
       if (m.daysToEnd === null || m.daysToEnd > 30 || m.outstanding <= 0) continue;
       out.push({
