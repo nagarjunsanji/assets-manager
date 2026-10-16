@@ -1,6 +1,6 @@
 # ASSET-MANAGER
 
-A self-hosted, frontend-only **family office dashboard** for tracking a household's whole asset base: investments, real estate, agriculture, livestock, private lending, insurance, liabilities and goals. It is built on Angular 20 and Firebase (Auth, Firestore and Hosting). There is no backend server.
+A self-hosted, frontend-only **family office dashboard** for tracking a household's whole asset base: investments, real estate, agriculture, livestock, private lending, insurance, liabilities and goals. It is built on Angular 20 and Firebase (Auth, Firestore and Hosting).
 
 ---
 
@@ -28,6 +28,7 @@ A self-hosted, frontend-only **family office dashboard** for tracking a househol
 - **Wealth simulator**: best, expected and worst cases plus an inflation-adjusted projection.
 - **Layout**: collapsible sidebar, global search, notifications (insurance renewals, FD maturities, loan due dates, vaccinations), profile menu, and a dark/light theme switcher.
 - **PWA**: installable, with offline caching of the app shell and Firestore's offline cache.
+- **International stocks**: USD stock quotes (Yahoo Finance) and USD/INR reference rates (Frankfurter) refresh independently at most once per day from the browser. If either provider is unavailable, the last saved value for that field is retained and the app identifies that fallback; first-time MRVL import uses its labeled saved reference values when a provider is unreachable. This best-effort refresh may be blocked by browser CORS or rate limits.
 
 ---
 

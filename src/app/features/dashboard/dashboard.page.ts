@@ -14,6 +14,7 @@ import { StatCard } from '../../shared/components/stat-card';
 import { areaChart, barChart, donutChart, radialChart } from '../../utilities/chart-builders';
 import { pct } from '../../utilities/finance';
 import { formatDate, formatInr, periodLabel } from '../../utilities/format';
+import { stockInvestedValueInr, stockMarketValueInr } from '../../utilities/stock-valuation';
 
 @Component({
   selector: 'app-dashboard-page',
@@ -101,7 +102,13 @@ export class DashboardPage {
     return [
       ...d.properties.map((x) => ({ name: x.name, kind: 'Property', icon: 'apartment', value: x.currentValue, change: x.purchaseCost == null ? null : pct(x.currentValue - x.purchaseCost, x.purchaseCost) })),
       ...d.agricultureLands.map((x) => ({ name: x.name, kind: 'Agri Land', icon: 'grass', value: x.marketValue, change: pct(x.marketValue - x.purchaseValue, x.purchaseValue) })),
-      ...d.stocks.map((x) => ({ name: x.symbol, kind: 'Stock', icon: 'candlestick_chart', value: x.quantity * x.currentPrice, change: pct(x.currentPrice - x.purchasePrice, x.purchasePrice) })),
+      ...d.stocks.map((x) => ({
+        name: x.symbol,
+        kind: x.purchaseBasisIsEstimate ? 'Stock · estimated basis' : 'Stock',
+        icon: 'candlestick_chart',
+        value: stockMarketValueInr(x),
+        change: pct(stockMarketValueInr(x) - stockInvestedValueInr(x), stockInvestedValueInr(x)),
+      })),
       ...d.mutualFunds.map((x) => ({ name: x.fundName.split(' - ')[0], kind: 'Mutual Fund', icon: 'pie_chart', value: x.units * x.currentNav, change: pct(x.currentNav - x.averageNav, x.averageNav) })),
       ...d.assets.map((x) => ({ name: x.name, kind: x.category, icon: 'account_balance_wallet', value: x.currentValue, change: pct(x.currentValue - x.investedValue, x.investedValue) })),
     ].sort((a, b) => b.value - a.value).slice(0, 6);

@@ -8,21 +8,29 @@ import { StatCard } from '../../shared/components/stat-card';
 import { FieldConfig } from '../../shared/dialogs/entity-form-dialog';
 import { barChart, donutChart } from '../../utilities/chart-builders';
 import { pct, sum } from '../../utilities/finance';
+import { formatInr } from '../../utilities/format';
+import {
+  stockCurrentPriceInr, stockInvestedValueInr, stockMarketValueInr, stockPurchasePriceInr,
+} from '../../utilities/stock-valuation';
 
 const FIELDS: FieldConfig[] = [
   { key: 'symbol', label: 'Symbol', type: 'text', required: true, pattern: '^[A-Za-z0-9&._-]{1,20}$' },
   { key: 'name', label: 'Company name', type: 'text', required: true },
   { key: 'exchange', label: 'Exchange', type: 'select', options: ['NSE', 'BSE', 'NASDAQ', 'NYSE'], defaultValue: 'NSE' },
+  { key: 'currency', label: 'Price currency', type: 'select', options: ['INR', 'USD'], required: true, defaultValue: 'INR' },
   { key: 'sector', label: 'Sector', type: 'select', options: SECTORS, required: true },
   { key: 'quantity', label: 'Quantity', type: 'number', required: true, min: 0 },
   { key: 'purchaseDate', label: 'Purchase date', type: 'date' },
-  { key: 'purchasePrice', label: 'Average purchase price', type: 'currency', required: true },
+  { key: 'purchasePrice', label: 'Average purchase price', type: 'currency', required: true, hint: 'If the original cost is unknown, use an estimated cost and note that it is an estimate.' },
   { key: 'currentPrice', label: 'Current market price', type: 'currency', required: true },
+  { key: 'purchaseExchangeRateToInr', label: 'Purchase FX rate (INR per USD)', type: 'number', required: true, visibleWhen: (v) => v['currency'] === 'USD', hint: 'For an estimated cost basis, enter the USD/INR rate used when adding the holding.' },
+  { key: 'exchangeRateToInr', label: 'Current FX rate (INR per USD)', type: 'number', required: true, visibleWhen: (v) => v['currency'] === 'USD', hint: 'Required to calculate the holding value in INR. Online refresh is best-effort.' },
   { key: 'notes', label: 'Notes', type: 'textarea' },
 ];
 
-const invested = (s: Stock) => s.quantity * s.purchasePrice;
-const current = (s: Stock) => s.quantity * s.currentPrice;
+const invested = stockInvestedValueInr;
+const current = stockMarketValueInr;
+const unitPrice = (priceInr: number) => formatInr(priceInr, false);
 
 @Component({
   selector: 'app-stocks-page',
@@ -48,11 +56,12 @@ export class StocksPage {
   protected readonly repo = inject(StockRepositoryService);
   protected readonly fields = FIELDS;
   protected readonly columns: ColumnConfig<Stock>[] = [
-    { key: 'symbol', label: 'Symbol', sub: (s) => `${s.name} · ${s.exchange}` },
+    { key: 'symbol', label: 'Symbol', sub: (s) =>
+      `${s.name} · ${s.exchange}${s.currency === 'USD' ? ` · Conversion: $1 = ${formatInr(s.exchangeRateToInr, false)}${s.fxRateDate ? ` (rate ${s.fxRateDate})` : ''} · Cost FX: $1 = ${formatInr(s.purchaseExchangeRateToInr ?? s.exchangeRateToInr, false)} · Quote ${s.quoteTimestamp ? new Date(s.quoteTimestamp).toLocaleString('en-IN') : 'not refreshed'}` : ''}` },
     { key: 'sector', label: 'Sector', type: 'chip' },
     { key: 'quantity', label: 'Qty', type: 'number' },
-    { key: 'purchasePrice', label: 'Avg Price', type: 'currency' },
-    { key: 'currentPrice', label: 'LTP', type: 'currency' },
+    { key: 'purchasePrice', label: 'Cost / Share (INR)', value: (s) => `${unitPrice(stockPurchasePriceInr(s))}${s.purchaseBasisIsEstimate ? ' (est.)' : ''}` },
+    { key: 'currentPrice', label: 'Market / Share (INR)', value: (s) => unitPrice(stockCurrentPriceInr(s)) },
     { key: 'invested', label: 'Invested', type: 'currency', value: invested },
     { key: 'current', label: 'Current', type: 'currency', value: current },
     { key: 'pnl', label: 'P&L', type: 'pnl', value: (s) => current(s) - invested(s) },

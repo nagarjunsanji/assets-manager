@@ -97,7 +97,7 @@ interface FieldView extends FieldConfig {
                 @default {
                   <mat-form-field appearance="outline">
                     <mat-label>{{ f.label }}</mat-label>
-                    @if (f.type === 'currency') { <span matTextPrefix>₹&nbsp;</span> }
+                    @if (f.type === 'currency') { <span matTextPrefix>{{ currencyPrefix(f) }}&nbsp;</span> }
                     <input
                       matInput
                       [type]="inputType(f)"
@@ -188,6 +188,10 @@ export class EntityFormDialog {
     }
   }
 
+  protected currencyPrefix(f: FieldConfig): string {
+    return this.form.get('currency')?.value === 'USD' ? '$' : '₹';
+  }
+
   protected isVisible(f: FieldConfig): boolean {
     return f.visibleWhen?.(this.form.getRawValue()) ?? true;
   }
@@ -204,15 +208,16 @@ export class EntityFormDialog {
   }
 
   protected save(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+    const visibleFields = this.fields().filter((field) => this.isVisible(field));
+    if (visibleFields.some((field) => this.form.controls[field.key].invalid)) {
+      visibleFields.forEach((field) => this.form.controls[field.key].markAsTouched());
       return;
     }
     const out: Record<string, unknown> = {};
     for (const f of this.data.fields) {
       if (!this.isVisible(f)) continue;
       let v = this.form.controls[f.key].value;
-      if (['number', 'currency', 'percent'].includes(f.type)) v = v === null || v === '' ? 0 : Number(v);
+      if (['number', 'currency', 'percent'].includes(f.type) && v !== null && v !== '') v = Number(v);
       else if (f.type === 'cashflows') {
         v = String(v ?? '').trim()
           ? String(v).split(/\r?\n/).map((line) => {

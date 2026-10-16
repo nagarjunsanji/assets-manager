@@ -3,6 +3,7 @@ import { NetWorthSnapshot } from '../models/wealth.models';
 import { periodKey } from '../utilities/format';
 import { computeSummary, PortfolioData } from '../utilities/portfolio';
 import { ProfileService } from './profile.service';
+import { StockQuoteAutoRefreshService } from './stock-quote-auto-refresh.service';
 import {
   AgricultureLandRepositoryService, FixedDepositRepositoryService, GoalRepositoryService,
   InsuranceRepositoryService, LendingRepositoryService, LiabilityRepositoryService, LivestockRepositoryService,
@@ -67,6 +68,8 @@ export class PortfolioService {
   });
 
   constructor() {
+    inject(StockQuoteAutoRefreshService);
+    inject(StockQuoteAutoRefreshService);
     // Keep a monthly snapshot in networthHistory for trend charts.
     effect((onCleanup) => {
       if (!this.loaded() || !this.history.loaded() || this.isEmpty()) return;

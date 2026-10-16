@@ -118,9 +118,16 @@ export interface Stock extends Entity {
   symbol: string;
   name: string;
   exchange: 'NSE' | 'BSE' | 'NASDAQ' | 'NYSE';
+  currency?: 'INR' | 'USD';
   quantity: number;
   purchasePrice: number;
+  purchaseExchangeRateToInr?: number;
   currentPrice: number;
+  exchangeRateToInr?: number;
+  priceFetchedAt?: number;
+  quoteTimestamp?: string;
+  fxRateDate?: IsoDate;
+  purchaseBasisIsEstimate?: boolean;
   sector: string;
   purchaseDate?: IsoDate;
 }

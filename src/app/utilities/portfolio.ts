@@ -4,6 +4,7 @@ import {
   AgricultureLand, FixedDeposit, Goal, Insurance, Lending, Liability, Livestock, MutualFund, OtherAsset, Property, Stock, Vehicle,
 } from '../models/wealth.models';
 import { fdMetrics, lendingMetrics, livestockMetrics, monthsToTarget, pct, premiumMonthly, sum } from './finance';
+import { stockInvestedValueInr, stockMarketValueInr } from './stock-valuation';
 
 export interface PortfolioData {
   properties: Property[];
@@ -54,7 +55,7 @@ export function computeSummary(d: PortfolioData, profile: UserProfile, asOf: Dat
   const receivables = otherBy((a) => a.category === 'Receivable');
 
   const assetClasses: AssetClassValue[] = [
-    cls('equity', 'Stocks', sum(d.stocks, (s) => s.quantity * s.currentPrice), sum(d.stocks, (s) => s.quantity * s.purchasePrice)),
+    cls('equity', 'Stocks', sum(d.stocks, stockMarketValueInr), sum(d.stocks, stockInvestedValueInr)),
     cls('mutualFunds', 'Mutual Funds', sum(d.mutualFunds, (f) => f.units * f.currentNav), sum(d.mutualFunds, (f) => f.units * f.averageNav)),
     cls(
       'fixedIncome',
