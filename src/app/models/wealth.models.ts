@@ -31,6 +31,7 @@ export interface AgricultureLand extends Entity {
   village: string;
   district: string;
   surveyNumber: string;
+  unitNumber?: string;
   areaAcres: number;
   purchaseDate: IsoDate;
   purchaseValue: number;

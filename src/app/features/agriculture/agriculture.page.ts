@@ -23,6 +23,7 @@ export function landMetrics(l: AgricultureLand) {
 const FIELDS: FieldConfig[] = [
   { key: 'name', label: 'Land name', type: 'text', required: true, section: 'Location' },
   { key: 'surveyNumber', label: 'Survey number', type: 'text', required: true },
+  { key: 'unitNumber', label: 'Unit number', type: 'text' },
   { key: 'village', label: 'Village', type: 'text', required: true },
   { key: 'district', label: 'District', type: 'text', required: true },
   { key: 'areaAcres', label: 'Area (acres)', type: 'number', required: true, min: 0.01 },
@@ -60,7 +61,7 @@ export class AgriculturePage {
   protected readonly repo = inject(AgricultureLandRepositoryService);
   protected readonly fields = FIELDS;
   protected readonly columns: ColumnConfig<AgricultureLand>[] = [
-    { key: 'name', label: 'Land', sub: (l) => `${l.village}, ${l.district} · Sy. ${l.surveyNumber}` },
+    { key: 'name', label: 'Land', sub: (l) => `${l.village}, ${l.district} · ${l.unitNumber ? `Unit ${l.unitNumber}` : `Sy. ${l.surveyNumber}`}` },
     { key: 'areaAcres', label: 'Acres', type: 'number' },
     { key: 'cropType', label: 'Crop' },
     { key: 'waterSource', label: 'Water', type: 'chip' },
@@ -100,4 +101,5 @@ export class AgriculturePage {
       { name: 'Market Value', data: items.map((l) => l.marketValue) },
     ], { colors: ['#8A94B2', '#7BD88F'] });
   });
+
 }
