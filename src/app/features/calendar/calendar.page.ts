@@ -85,7 +85,7 @@ function mondayStart(date: Date): Date {
           </div>
           <div class="calendar-grid" role="grid" [attr.aria-label]="monthLabel()">
             @for (cell of cells(); track cell.date) {
-              <div class="day-wrapper" role="gridcell">
+              <div class="day-wrapper" role="gridcell" [class.late-row]="$index >= 21">
                 <button
                   class="day-cell"
                   [class.outside]="!cell.currentMonth"

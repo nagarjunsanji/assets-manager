@@ -42,6 +42,7 @@
   &:hover, &:focus-within { z-index: 5; }
   &:nth-child(7n) .day-hover-card { right: 0; left: auto; }
   &:nth-child(7n + 1) .day-hover-card { left: 0; }
+  &.late-row .day-hover-card { top: auto; bottom: calc(100% - 1px); }
   &:hover .day-hover-card, &:focus-within .day-hover-card { display: block; }
 }
 
@@ -78,6 +79,9 @@
   width: max-content;
   min-width: 300px;
   max-width: min(480px, 88vw);
+  max-height: min(360px, 50vh);
+  overflow: auto;
+  overscroll-behavior: contain;
   padding: 12px;
   color: var(--text);
   background: var(--surface);
