@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { INTEREST_TYPES, Lending, LENDING_STATUS, LENDING_TYPES } from '../../models/wealth.models';
+import { MatDialog } from '@angular/material/dialog';
+import { INTEREST_TYPES, Lending, LENDING_STATUS, LENDING_TYPES, PAYMENT_DAY_OPTIONS } from '../../models/wealth.models';
 import { LendingRepositoryService } from '../../services/repositories/repositories';
 import { ChartCard } from '../../shared/components/chart-card';
 import { ColumnConfig } from '../../shared/components/data-table';
 import { EntityPage } from '../../shared/components/entity-page';
 import { StatCard } from '../../shared/components/stat-card';
 import { FieldConfig } from '../../shared/dialogs/entity-form-dialog';
+import { LendingScheduleDialog, LendingScheduleDialogData } from '../calendar/lending-schedule-dialog';
 import { areaChart, donutChart } from '../../utilities/chart-builders';
 import { lendingMetrics, pct, sum } from '../../utilities/finance';
 import { periodKey, periodLabel } from '../../utilities/format';
@@ -22,6 +24,8 @@ const FIELDS: FieldConfig[] = [
   { key: 'loanType', label: 'Loan type', type: 'select', options: LENDING_TYPES, required: true, defaultValue: 'Personal' },
   { key: 'startDate', label: 'Start date', type: 'date', required: true },
   { key: 'endDate', label: 'End date', type: 'date', hint: 'Leave blank for an open-ended loan' },
+  { key: 'paymentDay', label: 'Monthly payout date', type: 'select', options: PAYMENT_DAY_OPTIONS, defaultValue: 1, hint: 'Choose the day of each month; dates are adjusted to month end when needed' },
+  { key: 'paymentAccount', label: 'Receiving bank / account', type: 'text', hint: 'Account where lending payments are received' },
   { key: 'paymentsMade', label: 'Installments paid', type: 'number', min: 0, hint: 'Optional; leave blank to calculate from loan dates' },
   { key: 'collateral', label: 'Collateral', type: 'text', span: 2 },
   { key: 'amountRecovered', label: 'Amount recovered to date', type: 'currency', defaultValue: 0, section: 'Recovery' },
@@ -35,7 +39,8 @@ const FIELDS: FieldConfig[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-entity-page title="Private Lending" subtitle="Flat, reducing-balance and bullet loans with recovery tracking"
-      icon="handshake" entityLabel="Loan" [repo]="repo" [fields]="fields" [columns]="columns">
+      icon="handshake" entityLabel="Loan" [repo]="repo" [fields]="fields" [columns]="columns"
+      [rowClickEnabled]="true" (rowClick)="showDetails($event)">
       <ng-container kpis>
         <app-stat-card label="Capital Deployed" [value]="kpi().principal" icon="account_balance" accent="primary" [hint]="kpi().active + ' active loans'" />
         <app-stat-card label="Interest Earned" [value]="kpi().interest" icon="payments" accent="success" [delta]="kpi().roi" deltaLabel="ROI on principal" />
@@ -51,9 +56,20 @@ const FIELDS: FieldConfig[] = [
 })
 export class LendingPage {
   protected readonly repo = inject(LendingRepositoryService);
+  private readonly dialog = inject(MatDialog);
   protected readonly fields = FIELDS;
   protected readonly columns: ColumnConfig<Lending>[] = [
-    { key: 'borrowerName', label: 'Borrower', sub: (l) => [l.loanName, l.mobile, l.collateral].filter(Boolean).join(' · ') },
+    {
+      key: 'borrowerName',
+      label: 'Borrower',
+      sub: (l) => [
+        l.loanName,
+        l.mobile,
+        l.collateral,
+        `Payment day ${l.paymentDay ?? 1}`,
+        l.paymentAccount,
+      ].filter(Boolean).join(' · '),
+    },
     { key: 'loanType', label: 'Type' },
     { key: 'interestType', label: 'Method', type: 'chip' },
     { key: 'principal', label: 'Principal', type: 'currency' },
@@ -67,6 +83,15 @@ export class LendingPage {
       chipTone: (l) => (l.status === 'Active' ? 'info' : l.status === 'Closed' ? 'success' : 'danger'),
     },
   ];
+
+  protected showDetails(lending: Lending): void {
+    this.dialog.open<LendingScheduleDialog, LendingScheduleDialogData>(LendingScheduleDialog, {
+      data: { lending },
+      width: 'min(1000px, 96vw)',
+      maxWidth: '96vw',
+      autoFocus: false,
+    });
+  }
 
   protected readonly kpi = computed(() => {
     const items = this.repo.items();

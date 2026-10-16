@@ -188,6 +188,8 @@
   &.sev-critical mat-icon { color: var(--danger) !important; }
   &.sev-warning mat-icon { color: var(--warning) !important; }
   &.sev-info mat-icon { color: var(--primary) !important; }
+  &.cashflow-credit mat-icon { color: var(--success) !important; }
+  &.cashflow-debit mat-icon { color: var(--danger) !important; }
 }
 
 .notif-empty { padding: 24px 16px; display: flex; align-items: center; gap: 10px; color: var(--text-muted); }

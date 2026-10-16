@@ -16,6 +16,7 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       { path: 'dashboard', title: 'Dashboard', loadComponent: () => import('./features/dashboard/dashboard.page').then((m) => m.DashboardPage) },
+      { path: 'calendar', title: 'Cashflow Calendar', loadComponent: () => import('./features/calendar/calendar.page').then((m) => m.CalendarPage) },
       { path: 'analytics', title: 'Analytics', loadComponent: () => import('./features/analytics/analytics.page').then((m) => m.AnalyticsPage) },
       { path: 'fire', title: 'FIRE', loadComponent: () => import('./features/fire/fire.page').then((m) => m.FirePage) },
       { path: 'simulator', title: 'Wealth Simulator', loadComponent: () => import('./features/simulator/simulator.page').then((m) => m.SimulatorPage) },

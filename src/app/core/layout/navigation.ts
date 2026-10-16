@@ -14,6 +14,7 @@ export const NAVIGATION: NavGroup[] = [
     label: 'Overview',
     items: [
       { label: 'Dashboard', icon: 'space_dashboard', route: '/dashboard' },
+      { label: 'Cashflow Calendar', icon: 'calendar_month', route: '/calendar' },
       { label: 'Analytics', icon: 'monitoring', route: '/analytics' },
       { label: 'FIRE', icon: 'local_fire_department', route: '/fire' },
       { label: 'Wealth Simulator', icon: 'auto_graph', route: '/simulator' },

@@ -56,6 +56,7 @@ export interface AppNotification {
   id: string;
   severity: 'info' | 'warning' | 'critical';
   icon: string;
+  cashflow?: 'credit' | 'debit';
   title: string;
   message: string;
   date: string;

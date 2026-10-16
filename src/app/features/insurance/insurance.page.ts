@@ -20,6 +20,8 @@ const FIELDS: FieldConfig[] = [
   { key: 'premium', label: 'Premium', type: 'currency', required: true },
   { key: 'premiumFrequency', label: 'Premium frequency', type: 'select', options: PREMIUM_FREQUENCY, defaultValue: 'Yearly' },
   { key: 'renewalDate', label: 'Renewal date', type: 'date', required: true },
+  { key: 'premiumPaymentDate', label: 'Next premium payment date', type: 'date', section: 'Premium payment', hint: 'Set this to show premium debits on the calendar; recurring dates follow the selected frequency' },
+  { key: 'paymentAccount', label: 'Debit bank / account', type: 'text', hint: 'Account from which the premium is paid' },
   { key: 'startDate', label: 'Policy start date', type: 'date' },
   {
     key: 'insuredPeople',
@@ -95,12 +97,18 @@ export class InsurancePage {
     {
       key: 'policyName',
       label: 'Policy',
-      sub: (p) => [p.provider, p.policyNumber, p.insuredPeople?.replace(/\n/g, ', ')].filter(Boolean).join(' · '),
+      sub: (p) => [
+        p.provider,
+        p.policyNumber,
+        p.insuredPeople?.replace(/\n/g, ', '),
+        p.paymentAccount,
+      ].filter(Boolean).join(' · '),
     },
     { key: 'category', label: 'Category', type: 'chip' },
     { key: 'coverage', label: 'Coverage', type: 'currency' },
     { key: 'premium', label: 'Premium', type: 'currency', },
     { key: 'premiumFrequency', label: 'Frequency' },
+    { key: 'premiumPaymentDate', label: 'Next premium', type: 'date' },
     { key: 'renewalDate', label: 'Renewal', type: 'date' },
     { key: 'status', label: 'Status', type: 'chip', value: (p) => this.label(p), chipTone: renewalTone },
   ];

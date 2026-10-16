@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -35,8 +35,10 @@ import { PageHeader } from './page-header';
         [rows]="tableRows()"
         [columns]="columns()"
         [loading]="!repo().loaded()"
+        [rowClickEnabled]="rowClickEnabled()"
         (edit)="edit($event)"
         (remove)="remove($event)"
+        (rowClick)="rowClick.emit($event)"
       />
     </div>
   `,
@@ -52,6 +54,8 @@ export class EntityPage<T extends Entity> {
   readonly repo = input.required<BaseRepository<T>>();
   readonly fields = input.required<FieldConfig[]>();
   readonly columns = input.required<ColumnConfig<T>[]>();
+  readonly rowClickEnabled = input(false);
+  readonly rowClick = output<T>();
   readonly rows = input<T[] | null>(null);
   readonly tableTitle = input('All records');
 

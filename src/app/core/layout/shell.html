@@ -108,7 +108,14 @@
           }
         </div>
         @for (n of notifications.active(); track n.id) {
-          <a mat-menu-item [routerLink]="n.route" class="notif" [class]="'sev-' + n.severity">
+          <a
+            mat-menu-item
+            [routerLink]="n.route"
+            class="notif"
+            [class]="'sev-' + n.severity"
+            [class.cashflow-credit]="n.cashflow === 'credit'"
+            [class.cashflow-debit]="n.cashflow === 'debit'"
+          >
             <mat-icon>{{ n.icon }}</mat-icon>
             <div class="notif-text">
               <strong>{{ n.title }}</strong>

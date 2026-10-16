@@ -81,6 +81,14 @@ export interface Livestock extends Entity {
 // ---------- Alternative assets ----------
 export const INTEREST_TYPES = ['Flat', 'Reducing', 'Bullet'] as const;
 export type InterestType = (typeof INTEREST_TYPES)[number];
+function ordinal(day: number): string {
+  const suffix = day % 100 >= 11 && day % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][day % 10] ?? 'th';
+  return `${day}${suffix}`;
+}
+export const PAYMENT_DAY_OPTIONS = Array.from({ length: 31 }, (_, index) => {
+  const day = index + 1;
+  return { value: day, label: `${ordinal(day)} of every month` };
+});
 export const LENDING_TYPES = ['Personal', 'Business', 'Agriculture', 'Gold Backed', 'Property Backed'] as const;
 export const LENDING_STATUS = ['Active', 'Closed', 'Overdue', 'Defaulted'] as const;
 
@@ -96,6 +104,9 @@ export interface Lending extends Entity {
   loanType: string;
   startDate: IsoDate;
   endDate?: IsoDate;
+  /** Day of month for recurring interest / installment payments; defaults to 1. */
+  paymentDay?: number;
+  paymentAccount?: string;
   paymentsMade?: number;
   collateral?: string;
   amountRecovered: number;
@@ -185,6 +196,9 @@ export interface Insurance extends Entity {
   coverage: number;
   premium: number;
   premiumFrequency: (typeof PREMIUM_FREQUENCY)[number];
+  /** Next premium payment date; recurring dates are generated from this date. */
+  premiumPaymentDate?: IsoDate;
+  paymentAccount?: string;
   startDate?: IsoDate;
   renewalDate: IsoDate;
   nominee?: string;
@@ -221,6 +235,9 @@ export interface Liability extends Entity {
   emi: number;
   startDate: IsoDate;
   tenureMonths: number;
+  /** Day of month for the recurring EMI; defaults to 1. */
+  paymentDay?: number;
+  paymentAccount?: string;
   paymentsMade?: number;
 }
 

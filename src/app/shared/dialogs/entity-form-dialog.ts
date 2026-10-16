@@ -16,7 +16,7 @@ export interface FieldConfig {
   label: string;
   type: FieldType;
   required?: boolean;
-  options?: readonly (string | SelectOption)[];
+  options?: readonly (string | SelectOption | { value: number; label: string })[];
   min?: number;
   max?: number;
   pattern?: string;
@@ -36,7 +36,7 @@ export interface EntityFormDialogData {
 }
 
 interface FieldView extends FieldConfig {
-  opts: SelectOption[];
+  opts: Array<SelectOption | { value: number; label: string }>;
   showSection: boolean;
 }
 

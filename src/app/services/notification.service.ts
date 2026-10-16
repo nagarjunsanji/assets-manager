@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { AppNotification } from '../models/analytics.models';
 import { daysUntil, fdMetrics, lendingMetrics } from '../utilities/finance';
 import { formatDate, formatInr } from '../utilities/format';
+import { cashflowEvents } from '../utilities/repayment-calendar';
 import { PortfolioService } from './portfolio.service';
 
 const DISMISSED_KEY = 'asset-manager.dismissed-alerts';
@@ -14,6 +15,30 @@ export class NotificationService {
   readonly all = computed<AppNotification[]>(() => {
     const d = this.portfolio.data();
     const out: AppNotification[] = [];
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const reminderEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+
+    for (const event of cashflowEvents(d.lending, d.liabilities, today, reminderEnd, today, d.insurance)) {
+      const [year, month, day] = event.date.split('-').map(Number);
+      const eventDay = Date.UTC(year, month - 1, day);
+      const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+      const days = Math.round((eventDay - todayUtc) / 86_400_000);
+      if (days < 0 || days > 7 || event.schedule.status === 'Paid') continue;
+      const isCredit = event.direction === 'credit';
+      out.push({
+        id: `cashflow-${event.id}`,
+        severity: 'info',
+        icon: isCredit ? 'south' : 'north',
+        cashflow: event.direction,
+        title: days === 0
+          ? `${isCredit ? 'Credit expected' : 'Payment due'} today`
+          : `${isCredit ? 'Credit expected' : 'Payment due'} in ${days} ${days === 1 ? 'day' : 'days'}`,
+        message: `${event.title} · ${formatInr(event.amount)} · ${formatDate(event.date)} · ${event.subtitle}`,
+        date: event.date,
+        route: '/calendar',
+      });
+    }
 
     for (const p of d.insurance) {
       const days = daysUntil(p.renewalDate);

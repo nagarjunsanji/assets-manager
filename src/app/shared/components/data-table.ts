@@ -81,7 +81,13 @@ export interface ColumnConfig<T> {
             </td>
           </ng-container>
           <tr mat-header-row *matHeaderRowDef="displayed(); sticky: true"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayed()" (dblclick)="edit.emit(row)"></tr>
+          <tr
+            mat-row
+            *matRowDef="let row; columns: displayed()"
+            [class.clickable-row]="rowClickEnabled()"
+            (click)="onRowClick(row, $event)"
+            (dblclick)="edit.emit(row)"
+          ></tr>
           <tr class="mat-row" *matNoDataRow>
             <td class="no-data" [attr.colspan]="displayed().length">
               <mat-icon>inbox</mat-icon>
@@ -115,6 +121,7 @@ export interface ColumnConfig<T> {
     .progress { display: inline-block; width: 90px; height: 6px; border-radius: 6px; background: var(--glass-border); overflow: hidden; vertical-align: middle; margin-right: 8px; }
     .progress span { display: block; height: 100%; background: linear-gradient(90deg, var(--primary), var(--success)); border-radius: 6px; }
     .actions { width: 56px; text-align: right; }
+    .clickable-row { cursor: pointer; }
     .no-data { padding: 48px 16px; text-align: center; color: var(--text-muted); }
     .no-data mat-icon { display: block; margin: 0 auto 8px; }
     mat-paginator { background: transparent; }
@@ -125,8 +132,10 @@ export class DataTable<T extends Entity> implements AfterViewInit {
   readonly rows = input.required<T[]>();
   readonly columns = input.required<ColumnConfig<T>[]>();
   readonly loading = input(false);
+  readonly rowClickEnabled = input(false);
   readonly edit = output<T>();
   readonly remove = output<T>();
+  readonly rowClick = output<T>();
 
   private readonly sort = viewChild(MatSort);
   private readonly paginator = viewChild(MatPaginator);
@@ -157,6 +166,11 @@ export class DataTable<T extends Entity> implements AfterViewInit {
 
   protected applyFilter(value: string): void {
     this.filter.set(value);
+  }
+
+  protected onRowClick(row: T, event: MouseEvent): void {
+    if (!this.rowClickEnabled() || (event.target instanceof Element && event.target.closest('.actions'))) return;
+    this.rowClick.emit(row);
   }
 
   protected valueOf(col: ColumnConfig<T>, row: T): unknown {

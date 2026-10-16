@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { Liability, LIABILITY_TYPES } from '../../models/wealth.models';
+import { Liability, LIABILITY_TYPES, PAYMENT_DAY_OPTIONS } from '../../models/wealth.models';
 import { LiabilityRepositoryService } from '../../services/repositories/repositories';
 import { ChartCard } from '../../shared/components/chart-card';
 import { ColumnConfig } from '../../shared/components/data-table';
@@ -20,6 +20,8 @@ const FIELDS: FieldConfig[] = [
   { key: 'tenureMonths', label: 'Tenure (months)', type: 'number', defaultValue: 0 },
   { key: 'paymentsMade', label: 'EMIs paid', type: 'number', min: 0, defaultValue: 0 },
   { key: 'startDate', label: 'Start date', type: 'date', required: true },
+  { key: 'paymentDay', label: 'Monthly EMI debit date', type: 'select', options: PAYMENT_DAY_OPTIONS, defaultValue: 1, hint: 'Choose the day of each month; dates are adjusted to month end when needed' },
+  { key: 'paymentAccount', label: 'Debit bank / account', type: 'text', hint: 'Account from which the EMI is debited' },
   { key: 'notes', label: 'Notes', type: 'textarea' },
 ];
 
@@ -47,7 +49,11 @@ export class LiabilitiesPage {
   protected readonly repo = inject(LiabilityRepositoryService);
   protected readonly fields = FIELDS;
   protected readonly columns: ColumnConfig<Liability>[] = [
-    { key: 'name', label: 'Liability', sub: (l) => l.lender },
+    {
+      key: 'name',
+      label: 'Liability',
+      sub: (l) => [l.lender, `EMI day ${l.paymentDay ?? 1}`, l.paymentAccount].filter(Boolean).join(' · '),
+    },
     { key: 'type', label: 'Type', type: 'chip', chipTone: (l) => (l.type === 'Credit Card' ? 'warning' : 'info') },
     { key: 'principal', label: 'Principal', type: 'currency' },
     { key: 'outstanding', label: 'Outstanding', type: 'currency' },
