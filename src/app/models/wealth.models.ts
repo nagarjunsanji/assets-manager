@@ -220,6 +220,7 @@ export const LIABILITY_TYPES = ['Home Loan', 'Vehicle Loan', 'Personal Loan', 'C
 export interface Liability extends Entity {
   name: string;
   type: (typeof LIABILITY_TYPES)[number];
+  status?: 'Planned' | 'Active';
   lender: string;
   principal: number;
   outstanding: number;

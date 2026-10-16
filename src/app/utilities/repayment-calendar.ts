@@ -121,6 +121,7 @@ export function lendingSchedule(loan: Lending, asOf = new Date(), through = asOf
 }
 
 export function liabilitySchedule(liability: Liability, asOf = new Date()): RepaymentRow[] {
+  if (liability.status === 'Planned') return [];
   const months = Math.max(0, Math.floor(liability.tenureMonths));
   const monthlyRate = liability.interestRate / 1200;
   let balance = liability.principal;

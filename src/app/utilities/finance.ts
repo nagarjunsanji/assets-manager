@@ -165,6 +165,16 @@ export function lendingMetrics(loan: Lending, asOf: Date = new Date()) {
 }
 
 export function liabilityMetrics(l: Liability, asOf: Date = new Date()) {
+  if (l.status === 'Planned') {
+    return {
+      elapsedMonths: 0,
+      remainingMonths: Math.max(0, l.tenureMonths || 0),
+      principalRepaid: 0,
+      interestPaid: 0,
+      repaidPct: 0,
+      monthlyInterest: 0,
+    };
+  }
   const elapsed = Math.min(l.tenureMonths || 0, l.paymentsMade ?? monthsBetween(l.startDate, asOf));
   const paid = l.emi * elapsed;
   const principalRepaid = Math.max(0, l.principal - l.outstanding);

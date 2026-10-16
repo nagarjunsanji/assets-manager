@@ -12,6 +12,7 @@ import { liabilityMetrics, sum } from '../../utilities/finance';
 const FIELDS: FieldConfig[] = [
   { key: 'name', label: 'Name', type: 'text', required: true },
   { key: 'type', label: 'Type', type: 'select', options: LIABILITY_TYPES, required: true },
+  { key: 'status', label: 'Status', type: 'select', options: ['Planned', 'Active'], defaultValue: 'Active', hint: 'Planned loans are excluded from debt and repayment schedules until funds are disbursed' },
   { key: 'lender', label: 'Lender', type: 'text', required: true },
   { key: 'interestRate', label: 'Interest rate', type: 'percent', required: true },
   { key: 'principal', label: 'Principal / credit limit', type: 'currency', required: true },
@@ -55,6 +56,7 @@ export class LiabilitiesPage {
       sub: (l) => [l.lender, `EMI day ${l.paymentDay ?? 1}`, l.paymentAccount].filter(Boolean).join(' · '),
     },
     { key: 'type', label: 'Type', type: 'chip', chipTone: (l) => (l.type === 'Credit Card' ? 'warning' : 'info') },
+    { key: 'status', label: 'Status', type: 'chip', value: (l) => l.status ?? 'Active', chipTone: (l) => (l.status === 'Planned' ? 'warning' : 'success') },
     { key: 'principal', label: 'Principal', type: 'currency' },
     { key: 'outstanding', label: 'Outstanding', type: 'currency' },
     { key: 'interestRate', label: 'Rate', type: 'percent' },
@@ -85,7 +87,7 @@ export class LiabilitiesPage {
   protected readonly progressChart = computed(() => {
     const items = this.repo.items().filter((l) => l.type !== 'Credit Card');
     return barChart(items.map((l) => l.name), [
-      { name: 'Repaid', data: items.map((l) => Math.max(0, l.principal - l.outstanding)) },
+      { name: 'Repaid', data: items.map((l) => liabilityMetrics(l).principalRepaid) },
       { name: 'Outstanding', data: items.map((l) => l.outstanding) },
     ], { colors: ['#00C48C', '#FF5C7A'], chart: { type: 'bar', stacked: true } });
   });

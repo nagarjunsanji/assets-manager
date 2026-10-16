@@ -1,4 +1,5 @@
 import { Insurance, Lending, Liability } from '../models/wealth.models';
+import { liabilityMetrics } from './finance';
 import { cashflowEvents, insuranceSchedule, lendingSchedule, liabilitySchedule } from './repayment-calendar';
 
 describe('repayment calendar', () => {
@@ -82,6 +83,28 @@ describe('repayment calendar', () => {
     expect(rows[0].payment).toBe(31_000);
     expect(rows[0].principal).toBeGreaterThan(0);
     expect(rows[0].interest).toBeGreaterThan(0);
+  });
+
+  it('excludes planned loans from outstanding repayment and interest calculations', () => {
+    const planned: Liability = {
+      ...liability,
+      status: 'Planned',
+      principal: 10_350_900,
+      outstanding: 0,
+      emi: 0,
+      startDate: '2026-11-01',
+      tenureMonths: 180,
+    };
+
+    expect(liabilitySchedule(planned, new Date(2026, 9, 16))).toEqual([]);
+    expect(liabilityMetrics(planned, new Date(2026, 9, 16))).toEqual({
+      elapsedMonths: 0,
+      remainingMonths: 180,
+      principalRepaid: 0,
+      interestPaid: 0,
+      repaidPct: 0,
+      monthlyInterest: 0,
+    });
   });
 
   it('keeps the assumed EMI stable when extending an open-ended reducing schedule', () => {

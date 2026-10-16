@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { ANIMAL_TYPES, Livestock } from '../../models/wealth.models';
 import { LivestockRepositoryService } from '../../services/repositories/repositories';
+import { LivestockDetailsDialog, LivestockDetailsDialogData } from './livestock-details-dialog';
 import { ChartCard } from '../../shared/components/chart-card';
 import { ColumnConfig } from '../../shared/components/data-table';
 import { EntityPage } from '../../shared/components/entity-page';
@@ -15,7 +17,8 @@ import { appreciationPct, daysUntil, livestockMetrics, pct, sum } from '../../ut
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-entity-page title="Livestock Management" subtitle="Herd value, milk production, costs and vaccination schedule"
-      icon="pets" entityLabel="Livestock" [repo]="repo" [fields]="fields()" [columns]="columns">
+      icon="pets" entityLabel="Livestock" [repo]="repo" [fields]="fields()" [columns]="columns"
+      [rowClickEnabled]="true" (rowClick)="showDetails($event)">
       <ng-container kpis>
         <app-stat-card label="Herd Value" [value]="kpi().value" icon="pets" accent="purple" [delta]="kpi().growth" deltaLabel="Value growth over purchase" />
         <app-stat-card label="Total Animals" [value]="kpi().count" format="number" icon="groups" accent="cyan" [hint]="kpi().countGrowth.toFixed(0) + '% herd growth'" />
@@ -31,6 +34,7 @@ import { appreciationPct, daysUntil, livestockMetrics, pct, sum } from '../../ut
 })
 export class LivestockPage {
   protected readonly repo = inject(LivestockRepositoryService);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly fields = computed<FieldConfig[]>(() => [
     { key: 'farmName', label: 'Farm name', type: 'text', section: 'Herd', placeholder: 'e.g. Hebbevu Farms' },
@@ -99,6 +103,15 @@ export class LivestockPage {
     },
     { key: 'insured', label: 'Insured', type: 'chip', value: (l) => (l.insured ? 'Yes' : 'No'), chipTone: (l) => (l.insured ? 'success' : 'warning') },
   ];
+
+  protected showDetails(livestock: Livestock): void {
+    this.dialog.open<LivestockDetailsDialog, LivestockDetailsDialogData>(LivestockDetailsDialog, {
+      data: { livestock },
+      width: 'min(860px, 96vw)',
+      maxWidth: '96vw',
+      autoFocus: false,
+    });
+  }
 
   protected readonly kpi = computed(() => {
     const items = this.repo.items();
