@@ -93,6 +93,8 @@ export interface Lending extends Entity {
   /** Annual interest rate % */
   interestRate: number;
   interestType: InterestType;
+  /** Fixed monthly EMI for reducing-balance loans; omitted for flat and bullet loans. */
+  emiAmount?: number;
   loanType: string;
   startDate: IsoDate;
   endDate?: IsoDate;

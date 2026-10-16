@@ -1,7 +1,7 @@
 import { Insurance, Lending, Liability } from '../models/wealth.models';
-import { liabilityMetrics } from './finance';
+import { emi, impliedAnnualRate, liabilityMetrics, lendingMetrics } from './finance';
 import {
-  cashflowEvents, confirmedPaymentCount, insuranceEffectiveMaturityDate, insuranceSchedule, lendingSchedule, liabilitySchedule,
+  cashflowEvents, confirmedPaymentCount, insuranceEffectiveMaturityDate, insuranceSchedule, lendingRecoverySummary, lendingSchedule, liabilitySchedule,
 } from './repayment-calendar';
 
 describe('repayment calendar', () => {
@@ -143,6 +143,122 @@ describe('repayment calendar', () => {
 
     expect(far[0].payment).toBe(near[0].payment);
     expect(far.length).toBeGreaterThan(near.length);
+  });
+
+  it('treats flat lending as monthly interest-only with principal due at maturity', () => {
+    const loan: Lending = {
+      ...openEndedLending,
+      principal: 1_000_000,
+      interestRate: 12,
+      startDate: '2025-01-01',
+      endDate: '2025-04-01',
+      paymentsMade: 2,
+      amountRecovered: 20_000,
+    };
+    const rows = lendingSchedule(loan, new Date(2025, 3, 1));
+    const metrics = lendingMetrics(loan, new Date(2025, 3, 1));
+
+    expect(rows.map(({ payment, principal, interest, balance }) => [payment, principal, interest, balance])).toEqual([
+      [10_000, 0, 10_000, 1_000_000],
+      [10_000, 0, 10_000, 1_000_000],
+      [1_010_000, 1_000_000, 10_000, 0],
+    ]);
+    expect(metrics.interestEarned).toBe(20_000);
+    expect(metrics.outstanding).toBe(1_000_000);
+  });
+
+  it('calculates recovered amounts and remaining installments from confirmed payments', () => {
+    const loan: Lending = {
+      ...openEndedLending,
+      principal: 120_000,
+      interestRate: 12,
+      interestType: 'Reducing',
+      emiAmount: emi(120_000, 12, 12),
+      startDate: '2025-01-01',
+      endDate: '2026-01-01',
+      paymentsMade: 2,
+    };
+    const summary = lendingRecoverySummary(loan, new Date(2025, 3, 1));
+
+    expect(summary.paidInstallments).toBe(2);
+    expect(summary.totalInstallments).toBe(12);
+    expect(summary.remainingInstallments).toBe(10);
+    expect(summary.amountRecovered).toBeCloseTo(loan.emiAmount! * 2, 6);
+  });
+
+  it('counts a separately confirmed installment when calculating remaining EMIs', () => {
+    const loan: Lending = {
+      ...openEndedLending,
+      principal: 1_000_000,
+      interestRate: 12,
+      interestType: 'Reducing',
+      emiAmount: 33_200,
+      startDate: '2023-10-05',
+      endDate: '2026-10-05',
+      paymentDay: 5,
+      paymentsMade: 29,
+    };
+    const schedule = lendingSchedule(loan, new Date(2026, 9, 16));
+    const installment30 = schedule[29];
+    const summary = lendingRecoverySummary({
+      ...loan,
+      paymentConfirmations: [{
+        installment: installment30.installment,
+        dueDate: installment30.date,
+        amount: installment30.payment,
+        principal: installment30.principal,
+        confirmedAt: '2026-10-05T12:00:00.000Z',
+      }],
+    }, new Date(2026, 9, 16));
+
+    expect(summary.totalInstallments).toBe(36);
+    expect(summary.paidInstallments).toBe(30);
+    expect(summary.separatelyConfirmedInstallments).toBe(1);
+    expect(summary.remainingInstallments).toBe(6);
+    expect(summary.amountRecovered).toBeCloseTo(30 * 33_200, 6);
+  });
+
+  it('counts a bullet loan as one payment due only at maturity', () => {
+    const loan: Lending = {
+      ...openEndedLending,
+      principal: 100_000,
+      interestRate: 12,
+      interestType: 'Bullet',
+      startDate: '2025-01-01',
+      endDate: '2025-04-01',
+    };
+    const due = lendingRecoverySummary(loan, new Date(2025, 3, 1));
+    const paid = lendingRecoverySummary({ ...loan, paymentsMade: 1 }, new Date(2025, 3, 1));
+
+    expect(due.totalInstallments).toBe(1);
+    expect(due.paidInstallments).toBe(0);
+    expect(due.remainingInstallments).toBe(1);
+    expect(paid.paidInstallments).toBe(1);
+    expect(paid.remainingInstallments).toBe(0);
+    expect(paid.amountRecovered).toBeGreaterThan(100_000);
+  });
+
+  it('calculates reducing balance from the confirmed EMI count and supports EMI-implied rates', () => {
+    const monthlyPayment = emi(120_000, 12, 12);
+    const loan: Lending = {
+      ...openEndedLending,
+      principal: 120_000,
+      interestRate: 12,
+      interestType: 'Reducing',
+      emiAmount: monthlyPayment,
+      startDate: '2025-01-01',
+      endDate: '2026-01-01',
+      paymentsMade: 3,
+      amountRecovered: monthlyPayment * 3,
+    };
+    const metrics = lendingMetrics(loan, new Date(2025, 3, 1));
+    const rows = lendingSchedule(loan, new Date(2025, 3, 1));
+
+    expect(impliedAnnualRate(120_000, monthlyPayment, 12)).toBeCloseTo(12, 6);
+    expect(rows[0].payment).toBe(monthlyPayment);
+    expect(metrics.outstanding).toBeCloseTo(rows[2].balance, 6);
+    expect(metrics.interestEarned).toBeCloseTo(rows.slice(0, 3).reduce((sum, row) => sum + row.interest, 0), 6);
+    expect(metrics.outstanding).toBeLessThan(120_000);
   });
 
   it('schedules recurring insurance premiums from policy start using the configured payment day', () => {

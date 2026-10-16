@@ -3,7 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { Lending } from '../../models/wealth.models';
-import { lendingMetrics } from '../../utilities/finance';
+import { emi, lendingMetrics } from '../../utilities/finance';
 import { formatInr } from '../../utilities/format';
 import { confirmedPaymentCount, lendingSchedule } from '../../utilities/repayment-calendar';
 
@@ -28,6 +28,7 @@ export interface LendingScheduleDialogData {
         <article><small>Borrower</small><strong>{{ data.lending.borrowerName }}</strong></article>
         <article><small>Loan label</small><strong>{{ data.lending.loanName || '—' }}</strong></article>
         <article><small>Loan type / method</small><strong>{{ data.lending.loanType }} · {{ data.lending.interestType }}</strong></article>
+        <article><small>Payment structure</small><strong>{{ paymentStructure() }}</strong></article>
         <article><small>Principal</small><strong>{{ fmt(data.lending.principal) }}</strong></article>
         <article><small>Annual interest rate</small><strong>{{ data.lending.interestRate }}%</strong></article>
         <article><small>Estimated outstanding</small><strong>{{ fmt(metrics().outstanding) }}</strong></article>
@@ -39,7 +40,9 @@ export interface LendingScheduleDialogData {
         <article><small>End date</small><strong>{{ data.lending.endDate ? formatDate(data.lending.endDate) : 'Open-ended' }}</strong></article>
         <article><small>Payment day</small><strong>{{ data.lending.paymentDay ?? 1 }} of each month</strong></article>
         <article><small>Receiving account</small><strong>{{ data.lending.paymentAccount || '—' }}</strong></article>
-        <article><small>Installments confirmed paid</small><strong>{{ confirmedCount() }}</strong></article>
+        <article><small>{{ paymentCountLabel() }}</small><strong>{{ confirmedCount() }}</strong></article>
+        <article><small>Total EMIs / payments</small><strong>{{ data.lending.endDate ? metrics().termMonths : 'Open-ended' }}</strong></article>
+        <article><small>Remaining EMIs / payments</small><strong>{{ remainingCount() }}</strong></article>
         <article><small>Status</small><strong>{{ data.lending.status }}</strong></article>
         @if (data.lending.mobile) {
           <article><small>Mobile</small><strong>{{ data.lending.mobile }}</strong></article>
@@ -157,6 +160,30 @@ export class LendingScheduleDialog {
 
   protected confirmedCount(): number {
     return confirmedPaymentCount(this.data.lending.paymentsMade, this.data.lending.paymentConfirmations);
+  }
+
+  protected paymentCountLabel(): string {
+    return this.data.lending.interestType === 'Flat' ? 'Interest payments confirmed'
+      : this.data.lending.interestType === 'Reducing' ? 'EMIs confirmed paid' : 'Payments confirmed';
+  }
+
+  protected remainingCount(): number | string {
+    return this.data.lending.endDate
+      ? Math.max(0, this.metrics().termMonths - this.confirmedCount())
+      : '—';
+  }
+
+  protected paymentStructure(): string {
+    const loan = this.data.lending;
+    if (loan.interestType === 'Reducing') {
+      const amount = loan.emiAmount ?? emi(loan.principal, loan.interestRate, this.metrics().termMonths);
+      return `EMI ${this.fmt(amount)}`;
+    }
+    if (loan.interestType === 'Flat') {
+      const monthlyInterest = loan.principal * loan.interestRate / 1200;
+      return `Interest-only ${this.fmt(monthlyInterest)} / month · principal due at end`;
+    }
+    return 'Principal and interest due at end';
   }
 
   protected changeYear(amount: number): void {

@@ -96,17 +96,20 @@ export function lendingSchedule(loan: Lending, asOf = new Date(), through = asOf
   const term = end
     ? Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth())
     : null;
+  if (end && end <= start) return [];
   const monthsFromStart = Math.max(0, (asOf.getFullYear() - start.getFullYear()) * 12 + asOf.getMonth() - start.getMonth());
   const monthsThrough = Math.max(0, (through.getFullYear() - start.getFullYear()) * 12 + through.getMonth() - start.getMonth());
   const periods = term ?? Math.max(monthsFromStart + 12, monthsThrough);
   const effectiveTerm = term ?? 12;
   const monthlyRate = loan.interestRate / 1200;
-  const reducingPayment = emi(loan.principal, loan.interestRate, effectiveTerm);
+  const reducingPayment = loan.emiAmount ?? emi(loan.principal, loan.interestRate, effectiveTerm);
   let balance = loan.principal;
   const rows: RepaymentRow[] = [];
 
   for (let period = 1; period <= periods; period++) {
-    const date = scheduledDate(loan.startDate, period, loan.paymentDay);
+    const date = end && period === term
+      ? end
+      : scheduledDate(loan.startDate, period, loan.paymentDay);
     if (end && date > end) break;
     let payment = 0;
     let principal = 0;
@@ -146,6 +149,67 @@ export function lendingSchedule(loan: Lending, asOf = new Date(), through = asOf
     });
   }
   return rows;
+}
+
+export interface LendingRecoverySummary {
+  amountRecovered: number;
+  paidInstallments: number;
+  separatelyConfirmedInstallments: number;
+  totalInstallments: number | null;
+  remainingInstallments: number | null;
+}
+
+export function lendingRecoverySummary(loan: Lending, asOf = new Date()): LendingRecoverySummary {
+  const confirmed = new Set<number>();
+  for (let installment = 1; installment <= (loan.paymentsMade ?? 0); installment++) confirmed.add(installment);
+  for (const confirmation of loan.paymentConfirmations ?? []) confirmed.add(confirmation.installment);
+
+  const start = parseIsoDate(loan.startDate);
+  const latestInstallment = Math.max(0, ...confirmed);
+  const latestInstallmentDate = new Date(start.getFullYear(), start.getMonth() + latestInstallment + 1, start.getDate());
+  const through = loan.endDate ? parseIsoDate(loan.endDate) : latestInstallmentDate > asOf ? latestInstallmentDate : asOf;
+  const schedule = lendingSchedule(loan, asOf, through);
+  const paymentAmounts = new Map((loan.paymentConfirmations ?? []).map((confirmation) => [
+    confirmation.installment,
+    confirmation.amount,
+  ]));
+  const scheduledPayments = schedule.filter((row) => row.payment > 0);
+  if (loan.interestType === 'Bullet') {
+    const finalPayment = scheduledPayments.at(-1);
+    const finalConfirmed = !!finalPayment && (
+      (loan.paymentsMade ?? 0) > 0 || confirmed.has(finalPayment.installment)
+    );
+    const amountRecovered = finalConfirmed && finalPayment
+      ? paymentAmounts.get(finalPayment.installment) ?? finalPayment.payment
+      : 0;
+    return {
+      amountRecovered,
+      paidInstallments: finalConfirmed ? 1 : 0,
+      separatelyConfirmedInstallments: 0,
+      totalInstallments: finalPayment ? 1 : null,
+      remainingInstallments: finalPayment ? (finalConfirmed ? 0 : 1) : null,
+    };
+  }
+
+  const amountRecovered = scheduledPayments.reduce((total, row) => {
+    if (!confirmed.has(row.installment)) return total;
+    return total + (paymentAmounts.get(row.installment) ?? row.payment);
+  }, 0);
+  const totalInstallments = loan.endDate ? scheduledPayments.length : null;
+  const paidRows = scheduledPayments.filter((row) => confirmed.has(row.installment));
+  const paidInstallments = paidRows.length;
+  const separatelyConfirmedInstallments = paidRows.filter((row) =>
+    row.installment > (loan.paymentsMade ?? 0)
+      && loan.paymentConfirmations?.some((confirmation) => confirmation.installment === row.installment),
+  ).length;
+
+  return {
+    amountRecovered,
+    paidInstallments,
+    separatelyConfirmedInstallments,
+    totalInstallments,
+    remainingInstallments: totalInstallments === null ? null : Math.max(0, totalInstallments - paidInstallments),
+  };
 }
 
 export function liabilitySchedule(liability: Liability, asOf = new Date()): RepaymentRow[] {

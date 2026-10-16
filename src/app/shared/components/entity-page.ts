@@ -20,7 +20,7 @@ import { PageHeader } from './page-header';
     <div class="page">
       <app-page-header [title]="title()" [subtitle]="subtitle()" [icon]="icon()">
         <ng-content select="[headerActions]" />
-        <button mat-flat-button (click)="add()">
+        <button mat-flat-button (click)="externalForms() ? addRequested.emit() : add()">
           <mat-icon>add</mat-icon>
           Add {{ entityLabel() }}
         </button>
@@ -36,7 +36,7 @@ import { PageHeader } from './page-header';
         [columns]="columns()"
         [loading]="!repo().loaded()"
         [rowClickEnabled]="rowClickEnabled()"
-        (edit)="edit($event)"
+        (edit)="externalForms() ? editRequested.emit($event) : edit($event)"
         (remove)="remove($event)"
         (rowClick)="rowClick.emit($event)"
       />
@@ -55,7 +55,10 @@ export class EntityPage<T extends Entity> {
   readonly fields = input.required<FieldConfig[]>();
   readonly columns = input.required<ColumnConfig<T>[]>();
   readonly rowClickEnabled = input(false);
+  readonly externalForms = input(false);
   readonly rowClick = output<T>();
+  readonly addRequested = output<void>();
+  readonly editRequested = output<T>();
   readonly rows = input<T[] | null>(null);
   readonly tableTitle = input('All records');
 

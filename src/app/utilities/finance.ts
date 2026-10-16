@@ -81,7 +81,24 @@ export function emi(principal: number, annualRate: number, months: number): numb
   if (months <= 0) return 0;
   const r = annualRate / 12 / 100;
   if (!r) return principal / months;
-  return (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
+  const discount = Math.exp(-months * Math.log1p(r));
+  return (principal * r) / (1 - discount);
+}
+
+export function impliedAnnualRate(principal: number, payment: number, months: number): number | null {
+  if (principal <= 0 || payment <= 0 || months <= 0 || payment < principal / months) return null;
+
+  let low = 0;
+  let high = 100;
+  while (emi(principal, high, months) < payment && high < 1_000_000) high *= 2;
+  if (emi(principal, high, months) < payment) return null;
+
+  for (let i = 0; i < 100; i++) {
+    const rate = (low + high) / 2;
+    if (emi(principal, rate, months) < payment) low = rate;
+    else high = rate;
+  }
+  return (low + high) / 2;
 }
 
 const COMPOUNDS_PER_YEAR: Record<Compounding, number> = { Monthly: 12, Quarterly: 4, Yearly: 1, Simple: 0 };
@@ -110,34 +127,42 @@ export function fdMetrics(fd: FixedDeposit, asOf: Date = new Date()) {
 
 export function lendingMetrics(loan: Lending, asOf: Date = new Date()) {
   const elapsedFromStart = monthsBetween(loan.startDate, asOf);
-  const scheduledMonths = loan.endDate ? Math.max(1, monthsBetween(loan.startDate, new Date(loan.endDate))) : null;
+  const start = new Date(`${loan.startDate}T00:00:00`);
+  const end = loan.endDate ? new Date(`${loan.endDate}T00:00:00`) : null;
+  const scheduledMonths = end
+    ? Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth())
+    : null;
   const termMonths = scheduledMonths ?? Math.max(1, elapsedFromStart);
-  const elapsedMonths = Math.min(
-    scheduledMonths ?? elapsedFromStart,
-    loan.paymentsMade === undefined
-      ? elapsedFromStart
-      : Math.max(0, loan.paymentsMade - monthsBetween(asOf, new Date())),
-  );
+  const confirmedInstallments = new Set<number>();
+  for (let installment = 1; installment <= (loan.paymentsMade ?? 0); installment++) confirmedInstallments.add(installment);
+  for (const confirmation of loan.paymentConfirmations ?? []) confirmedInstallments.add(confirmation.installment);
+  const elapsedMonths = Math.min(scheduledMonths ?? elapsedFromStart, confirmedInstallments.size);
   const r = loan.interestRate / 100;
   let accrued = 0;
   let totalInterest = 0;
   let monthlyIncome = 0;
+  let outstandingPrincipal = loan.principal;
 
   switch (loan.interestType) {
     case 'Flat':
       accrued = loan.principal * r * (elapsedMonths / 12);
       totalInterest = loan.principal * r * (termMonths / 12);
       monthlyIncome = (loan.principal * r) / 12;
+      if (scheduledMonths && confirmedInstallments.has(scheduledMonths)) outstandingPrincipal = 0;
       break;
     case 'Reducing': {
-      const installment = emi(loan.principal, loan.interestRate, termMonths);
+      const installment = loan.emiAmount ?? emi(loan.principal, loan.interestRate, termMonths);
       let balance = loan.principal;
       for (let m = 0; m < termMonths; m++) {
         const interest = balance * (r / 12);
-        if (m < elapsedMonths) accrued += interest;
-        if (m === elapsedMonths) monthlyIncome = interest;
+        const principal = Math.min(balance, Math.max(0, installment - interest));
+        if (confirmedInstallments.has(m + 1)) {
+          accrued += interest;
+          outstandingPrincipal = Math.max(0, outstandingPrincipal - principal);
+        }
+        if (m + 1 === elapsedMonths + 1) monthlyIncome = Math.max(0, interest);
         totalInterest += interest;
-        balance -= installment - interest;
+        balance = Math.max(0, balance - principal);
       }
       break;
     }
@@ -150,7 +175,9 @@ export function lendingMetrics(loan: Lending, asOf: Date = new Date()) {
 
   const closed = loan.status === 'Closed';
   const totalDue = loan.principal + accrued;
-  const outstanding = closed ? 0 : Math.max(0, totalDue - (loan.amountRecovered || 0));
+  const outstanding = closed ? 0 : loan.interestType === 'Reducing' || loan.interestType === 'Flat'
+    ? outstandingPrincipal
+    : Math.max(0, loan.principal + accrued - (loan.amountRecovered || 0));
   return {
     termMonths,
     elapsedMonths,
