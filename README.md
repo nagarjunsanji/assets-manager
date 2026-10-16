@@ -21,14 +21,14 @@ A self-hosted, frontend-only **family office dashboard** for tracking a househol
 ## Features
 
 - **Dashboard**: net worth, total assets and liabilities, passive income, monthly cash flow, investment returns, and a 0–100 financial health score.
-- **Modules** (all with CRUD, KPIs and charts): Properties, Agriculture Lands, Farms, Livestock, Private Lending (flat, reducing-balance and bullet interest), Stocks, Mutual Funds (CAGR and XIRR), Fixed Deposits, Other Assets (bonds, savings, gold, silver, crypto, EPF, PPF, NPS, machinery, receivables), Insurance (renewal alerts), Vehicles, Liabilities, Goals.
-- **Document Vault**: store PDFs and images up to 700 KB directly in Firestore and link them to properties, farms, livestock, insurance policies or loans.
-- **Analytics**: 15 ApexCharts views (net worth growth, allocation, assets vs liabilities, passive income, wealth trend, investment growth, lending growth, agriculture revenue, farm profitability, livestock value, property appreciation, goal progress, FIRE progress, cash flow, income sources).
+- **Modules** (all with CRUD, KPIs and charts): Properties, Agriculture Lands, Livestock (family tree with age and performance hover cards), Private Lending (flat, reducing-balance and bullet interest), Stocks, Mutual Funds (CAGR and XIRR), Fixed Deposits, Other Assets (bonds, savings, gold, silver, crypto, EPF, PPF, NPS, machinery, receivables), Insurance (renewal alerts), Vehicles, Liabilities, Goals.
+- **Document Vault**: store PDFs and images up to 700 KB directly in Firestore and link them to properties, livestock, insurance policies or loans.
+- **Analytics**: 15 ApexCharts views (net worth growth, allocation, assets vs liabilities, passive income, wealth trend, investment growth, lending growth, agriculture revenue, livestock profitability by location, livestock value, property appreciation, goal progress, FIRE progress, cash flow, income sources).
 - **FIRE dashboard**: target, progress, gap, estimated FIRE date and a projection chart.
 - **Wealth simulator**: best, expected and worst cases plus an inflation-adjusted projection.
 - **Layout**: collapsible sidebar, global search, notifications (insurance renewals, FD maturities, loan due dates, vaccinations), profile menu, and a dark/light theme switcher.
 - **PWA**: installable, with offline caching of the app shell and Firestore's offline cache.
-- **International stocks**: USD stock quotes (Yahoo Finance) and USD/INR reference rates (Frankfurter) refresh independently at most once per day from the browser. If either provider is unavailable, the last saved value for that field is retained and the app identifies that fallback; first-time MRVL import uses its labeled saved reference values when a provider is unreachable. This best-effort refresh may be blocked by browser CORS or rate limits.
+- **International stocks**: USD stock quotes (Yahoo Finance) and USD/INR reference rates (Frankfurter) refresh independently at most once per day from the browser. If either provider is unavailable, the last saved value for that field is retained. This best-effort refresh may be blocked by browser CORS or rate limits.
 
 ---
 
@@ -84,8 +84,7 @@ users/{uid}                         # profile: income, expenses, SWR, return, in
 users/{uid}/assets/{id}             # bonds, savings, gold, silver, crypto, EPF, PPF, NPS, machinery, receivables
 users/{uid}/properties/{id}
 users/{uid}/agricultureLands/{id}
-users/{uid}/farms/{id}
-users/{uid}/livestock/{id}          # farmId → farms/{id}
+users/{uid}/livestock/{id}          # optional farm name/location stored on livestock
 users/{uid}/lending/{id}
 users/{uid}/stocks/{id}
 users/{uid}/mutualFunds/{id}
@@ -98,7 +97,7 @@ users/{uid}/documents/{id}          # document metadata and optional small base6
 users/{uid}/networthHistory/{YYYY-MM}
 ```
 
-All reads and writes go through repository services (`PropertyRepositoryService`, `FarmRepositoryService`, `LivestockRepositoryService`, `LendingRepositoryService`, and so on), which extend a generic `BaseRepository<T>`. Each repository exposes:
+All reads and writes go through repository services (`PropertyRepositoryService`, `LivestockRepositoryService`, `LendingRepositoryService`, and so on), which extend a generic `BaseRepository<T>`. Each repository exposes:
 
 - `items`: a live `Signal<T[]>` backed by `onSnapshot`
 - `create`, `update`, `upsert`, `delete`, `replaceAll`, `clear`
