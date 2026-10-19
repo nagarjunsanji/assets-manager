@@ -141,15 +141,16 @@ export class AnalyticsPage {
 
   protected readonly investmentGrowth = computed(() => {
     const holdings = this.investmentHoldings();
-    return barChart(holdings.map((holding) =>
-      `${holding.name} · ${holding.startDate ? this.shortDate(holding.startDate) : 'start date not recorded'}`), [
+    const categories = holdings.map((holding) =>
+      `${holding.name} · ${holding.startDate ? this.shortDate(holding.startDate) : 'start date not recorded'}`);
+    return barChart(categories, [
       { name: 'Invested', data: holdings.map((holding) => Math.round(holding.invested)) },
       { name: 'Current', data: holdings.map((holding) => Math.round(holding.current)) },
     ], {
       chart: { type: 'bar' },
       colors: ['#8A94B2', '#9B6BFF'],
       plotOptions: { bar: { horizontal: true, borderRadius: 5, barHeight: '65%' } },
-      xaxis: { labels: { formatter: (value: string) => formatInr(Number(value)) } },
+      xaxis: { categories, labels: { formatter: (value: string) => formatInr(Number(value)) } },
       yaxis: { labels: { maxWidth: 190 } },
       tooltip: { y: { formatter: (value: number) => formatInr(value) } },
     });
@@ -163,8 +164,9 @@ export class AnalyticsPage {
     const classes = this.s().assetClasses
       .filter((assetClass) => ['equity', 'mutualFunds', 'fixedIncome', 'metals', 'crypto'].includes(assetClass.key))
       .filter((assetClass) => assetClass.value > 0 || assetClass.invested > 0);
+    const categories = classes.map((assetClass) => assetClass.label);
     const gains = classes.map((assetClass) => Math.round(assetClass.value - assetClass.invested));
-    return barChart(classes.map((assetClass) => assetClass.label), [
+    return barChart(categories, [
       { name: 'Gain / (Loss)', data: gains },
     ], {
       colors: ['#00C48C'],
@@ -176,14 +178,17 @@ export class AnalyticsPage {
           colors: { ranges: [{ from: -1e15, to: -1, color: '#FF5C7A' }] },
         },
       },
-      xaxis: { labels: { formatter: (value: string) => formatInr(Number(value)) } },
+      xaxis: { categories, labels: { formatter: (value: string) => formatInr(Number(value)) } },
       yaxis: { labels: { maxWidth: 150 } },
       tooltip: {
         y: {
           formatter: (value: number, options) => {
             const assetClass = classes[options?.dataPointIndex ?? -1];
             if (!assetClass) return formatInr(value);
-            return `${formatInr(value)} · ${formatPct(pct(value, assetClass.invested))} return`;
+            const returnText = assetClass.invested > 0
+              ? `${formatPct(pct(value, assetClass.invested))} return`
+              : 'invested basis not recorded';
+            return `${formatInr(value)} · ${returnText}`;
           },
         },
       },
