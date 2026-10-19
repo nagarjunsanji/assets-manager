@@ -30,8 +30,7 @@
             class="nav-item"
             [routerLink]="item.route"
             routerLinkActive="active"
-            [matTooltip]="collapsed() && !isMobile() ? item.label : ''"
-            matTooltipPosition="right"
+            [attr.aria-label]="item.label"
           >
             <mat-icon>{{ item.icon }}</mat-icon>
             @if (!collapsed() || isMobile()) {

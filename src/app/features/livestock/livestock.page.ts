@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, TemplateRef, computed, inject, viewChild } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { MatDialog } from '@angular/material/dialog';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { ANIMAL_TYPES, Livestock } from '../../models/wealth.models';
 import { LivestockRepositoryService } from '../../services/repositories/repositories';
@@ -19,13 +20,17 @@ import {
 
 @Component({
   selector: 'app-livestock-page',
-  imports: [EntityPage, StatCard, ChartCard, NgTemplateOutlet, MatIconModule],
+  imports: [EntityPage, StatCard, ChartCard, NgTemplateOutlet, MatButtonModule, MatDialogModule, MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-entity-page title="Livestock Management" subtitle="Herd value, milk production, costs and vaccination schedule"
       icon="pets" entityLabel="Livestock" [repo]="repo" [fields]="fields()" [columns]="columns"
       [rowClickEnabled]="true" (rowClick)="showDetails($event)">
-      <ng-container kpis>
+    <button headerActions mat-stroked-button type="button" (click)="openHerdTree()">
+      <mat-icon>account_tree</mat-icon>
+      Herd Family Tree
+    </button>
+    <ng-container kpis>
         <app-stat-card label="Herd Value" [value]="kpi().value" icon="pets" accent="purple" [delta]="kpi().growth" deltaLabel="Value growth over purchase" />
         <app-stat-card label="Total Animals" [value]="kpi().count" format="number" icon="groups" accent="cyan" [hint]="kpi().countGrowth.toFixed(0) + '% herd growth'" />
         <app-stat-card label="Milk / Day" [value]="kpi().milk" format="number" icon="water_drop" accent="primary" hint="litres" />
@@ -35,92 +40,98 @@ import {
         <app-chart-card class="span-8" title="Livestock by Location" subtitle="Monthly revenue, costs and profit" [options]="locationChart()" />
         <app-chart-card class="span-4" title="Livestock Value Mix" [options]="mixChart()" />
       </div>
-      <section class="herd-tree glass-card" aria-labelledby="herd-tree-title">
-        <header class="tree-header">
-          <div>
-            <h2 id="herd-tree-title">Herd Family Tree</h2>
-            <p>Lineage uses linked mother records. Node colors are age-band cues, not health or lifespan assessments. Hover or focus for performance and recorded offspring; select for full details.</p>
-          </div>
-          <span class="tree-count">{{ repo.count() }} records</span>
-        </header>
-        <div class="stage-legend" aria-label="Life stage color legend">
-          <span><i class="stage-dot newborn"></i>Newborn · under 3 months</span>
-          <span><i class="stage-dot growing"></i>Growing</span>
-          <span><i class="stage-dot productive"></i>Mature</span>
-          <span><i class="stage-dot mid-life"></i>Mid-age</span>
-          <span><i class="stage-dot senior"></i>Senior</span>
-          <span><i class="stage-dot deceased"></i>Deceased</span>
-          <span><i class="stage-dot unknown"></i>Age unknown</span>
-        </div>
-        <p class="stage-note">
-          Gir reference: first calving averaged 1,534 days (~4.2 years) and the inter-calving interval averaged 423 days in a breed survey.
-          The first-calving marker is used only when breed is entered as Gir. Other color thresholds are approximate visual management bands, not a lifespan or health prediction.
-          <a href="https://doi.org/10.1017/S1014233900001607" target="_blank" rel="noopener noreferrer">Breed study</a>
-          · <a href="https://doi.org/10.48165/ijapm.2023.37.3.11" target="_blank" rel="noopener noreferrer">Gir calf growth study</a>.
-          Goat age bands are broad visual categories, not breed-specific milestones.
-        </p>
-        @if (familyTree().length) {
-          <div class="tree-scroll">
-            <div class="tree-canvas">
-              <ng-container *ngTemplateOutlet="nodeTree; context: { $implicit: familyTree() }" />
+      <ng-template #herdTreeDialog>
+        <h2 mat-dialog-title class="tree-dialog-title">
+          <span>
+            <strong>Herd Family Tree</strong>
+            <small>{{ repo.count() }} records · click an animal for full details</small>
+          </span>
+          <button mat-icon-button mat-dialog-close aria-label="Close herd family tree">
+            <mat-icon>close</mat-icon>
+          </button>
+        </h2>
+        <mat-dialog-content class="tree-dialog-content">
+          <section class="herd-tree glass-card" aria-label="Herd family tree">
+            <p class="tree-description">Lineage uses linked mother records. Node colors are age-band cues, not health or lifespan assessments. Hover or focus for recorded offspring and milk income; select an animal for full details.</p>
+            <div class="stage-legend" aria-label="Life stage color legend">
+              <span><i class="stage-dot newborn"></i>Newborn · under 3 months</span>
+              <span><i class="stage-dot growing"></i>Growing</span>
+              <span><i class="stage-dot productive"></i>Mature</span>
+              <span><i class="stage-dot mid-life"></i>Mid-age</span>
+              <span><i class="stage-dot senior"></i>Senior</span>
+              <span><i class="stage-dot deceased"></i>Deceased</span>
+              <span><i class="stage-dot unknown"></i>Age unknown</span>
             </div>
-          </div>
-        } @else {
-          <p class="tree-empty">Add livestock records to start building the herd tree.</p>
-        }
-      </section>
-      <ng-template #nodeTree let-nodes>
-        <div class="tree-level" [class.tree-root]="nodes === familyTree()">
-          @for (node of nodes; track node.animal.id) {
-            <div class="tree-branch" [class.tree-last]="$last && nodes.length > 1">
-              <button type="button" class="animal-node"
-                [class.stage-newborn]="lifeStage(node.animal).stage === 'newborn'"
-                [class.stage-growing]="lifeStage(node.animal).stage === 'growing'"
-                [class.stage-productive]="lifeStage(node.animal).stage === 'productive'"
-                [class.stage-mid-life]="lifeStage(node.animal).stage === 'mid-life'"
-                [class.stage-senior]="lifeStage(node.animal).stage === 'senior'"
-                [class.stage-deceased]="lifeStage(node.animal).stage === 'deceased'"
-                [class.stage-unknown]="lifeStage(node.animal).stage === 'unknown'"
-                (click)="showDetails(node.animal)"
-                [attr.aria-label]="nodeLabel(node.animal)">
-                <span class="node-icon"><mat-icon>pets</mat-icon></span>
-                <span class="node-heading">
-                  <strong>{{ node.animal.tagNumber ? '#' + node.animal.tagNumber : node.animal.breed }}</strong>
-                  <small>{{ node.animal.animalType }} · {{ node.animal.gender || 'Gender not set' }} · {{ lifeStage(node.animal).label }}</small>
-                </span>
-                <span class="node-tooltip" role="tooltip">
-                  <strong>{{ node.animal.tagNumber ? '#' + node.animal.tagNumber + ' · ' : '' }}{{ node.animal.breed }} {{ node.animal.animalType }}</strong>
-                  <span>Age: {{ ageLabel(node.animal) }}</span>
-                  <span>Life stage: {{ lifeStage(node.animal).label }}</span>
-                  <span>Status: {{ node.animal.lifeStatus || 'Alive' }}{{ node.animal.deathDate ? ' · ' + node.animal.deathDate : '' }}</span>
-                  <span>Count: {{ node.animal.count }}</span>
-                  @if (node.animal.gender === 'Female') {
-                    <span>Recorded offspring linked: {{ offspringCount(node.animal) }}</span>
-                  }
-                  <span>Current value: {{ fmt(node.animal.currentValue) }}</span>
-                  <span>Milk: {{ node.animal.milkLitresPerDay || 0 }} L/day</span>
-                  <span>Est. monthly revenue: {{ fmt(metrics(node.animal).monthlyRevenue) }}</span>
-                  <span>Est. monthly costs: {{ fmt(metrics(node.animal).monthlyExpense) }}</span>
-                  <span>Est. monthly profit: {{ fmt(metrics(node.animal).monthlyProfit) }}</span>
-                </span>
-              </button>
-              @if (node.children.length) {
-                <div class="tree-children">
-                  <ng-container *ngTemplateOutlet="nodeTree; context: { $implicit: node.children }" />
+            <p class="stage-note">
+              Gir reference: first calving averaged 1,534 days (~4.2 years) and the inter-calving interval averaged 423 days in a breed survey.
+              The first-calving marker is used only when breed is entered as Gir. Other color thresholds are approximate visual management bands, not a lifespan or health prediction.
+              <a href="https://doi.org/10.1017/S1014233900001607" target="_blank" rel="noopener noreferrer">Breed study</a>
+              · <a href="https://doi.org/10.48165/ijapm.2023.37.3.11" target="_blank" rel="noopener noreferrer">Gir calf growth study</a>.
+              Goat age bands are broad visual categories, not breed-specific milestones.
+            </p>
+            @if (familyTree().length) {
+              <div class="tree-scroll">
+                <div class="tree-canvas">
+                  <ng-container *ngTemplateOutlet="nodeTree; context: { $implicit: familyTree() }" />
                 </div>
-              }
-            </div>
-          }
-        </div>
+              </div>
+            } @else {
+              <p class="tree-empty">Add livestock records to start building the herd tree.</p>
+            }
+          </section>
+        </mat-dialog-content>
+      </ng-template>
+      <ng-template #nodeTree let-nodes>
+          <div class="tree-level" [class.tree-root]="nodes === familyTree()">
+            @for (node of nodes; track node.animal.id) {
+              <div class="tree-branch" [class.tree-last]="$last && nodes.length > 1">
+                <button type="button" class="animal-node"
+                  [class.stage-newborn]="lifeStage(node.animal).stage === 'newborn'"
+                  [class.stage-growing]="lifeStage(node.animal).stage === 'growing'"
+                  [class.stage-productive]="lifeStage(node.animal).stage === 'productive'"
+                  [class.stage-mid-life]="lifeStage(node.animal).stage === 'mid-life'"
+                  [class.stage-senior]="lifeStage(node.animal).stage === 'senior'"
+                  [class.stage-deceased]="lifeStage(node.animal).stage === 'deceased'"
+                  [class.stage-unknown]="lifeStage(node.animal).stage === 'unknown'"
+                  (click)="showDetails(node.animal)"
+                  [attr.aria-label]="nodeLabel(node.animal)">
+                  <span class="node-icon"><mat-icon>pets</mat-icon></span>
+                  <span class="node-heading">
+                    <strong>{{ node.animal.tagNumber ? '#' + node.animal.tagNumber : node.animal.breed }}</strong>
+                    <small>{{ node.animal.animalType }} · {{ node.animal.gender || 'Gender not set' }} · {{ lifeStage(node.animal).label }}</small>
+                  </span>
+                  <span class="node-tooltip" role="tooltip">
+                    <strong>{{ node.animal.tagNumber ? '#' + node.animal.tagNumber + ' · ' : '' }}{{ node.animal.breed }} {{ node.animal.animalType }}</strong>
+                    <span>Age: {{ ageLabel(node.animal) }}</span>
+                    <span>Life stage: {{ lifeStage(node.animal).label }}</span>
+                    <span>Status: {{ node.animal.lifeStatus || 'Alive' }}{{ node.animal.deathDate ? ' · ' + node.animal.deathDate : '' }}</span>
+                    <span>Count: {{ node.animal.count }}</span>
+                    @if (node.animal.gender === 'Female') {
+                      <span>Recorded offspring linked: {{ offspringCount(node.animal) }}</span>
+                    }
+                    <span>Current value: {{ fmt(node.animal.currentValue) }}</span>
+                    <span>Milk income received so far: {{ fmt(milkIncomeReceived(node.animal)) }}</span>
+                  </span>
+                </button>
+                @if (node.children.length) {
+                  <div class="tree-children">
+                    <ng-container *ngTemplateOutlet="nodeTree; context: { $implicit: node.children }" />
+                  </div>
+                }
+              </div>
+            }
+          </div>
       </ng-template>
     </app-entity-page>
   `,
   styles: `
-    .herd-tree { min-width: 0; margin-top: 24px; padding: 22px; overflow: hidden; }
-    .tree-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
-    .tree-header h2 { margin: 0; font-size: 18px; }
-    .tree-header p { margin: 6px 0 0; color: var(--text-muted); font-size: 13px; }
-    .tree-count { flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--glass-border); border-radius: 999px; color: var(--text-muted); font-size: 12px; }
+    .tree-dialog-title { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 8px; }
+    .tree-dialog-title > span { display: flex; flex-direction: column; gap: 4px; }
+    .tree-dialog-title strong { font-size: 20px; }
+    .tree-dialog-title small { color: var(--text-muted); font-size: 12px; font-weight: 400; }
+    .tree-dialog-content { display: flex; height: calc(92vh - 100px); max-height: calc(92vh - 100px); flex-direction: column; box-sizing: border-box; }
+    .herd-tree { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; padding: 18px; overflow: hidden; }
+    .tree-description { margin: 0 0 12px; color: var(--text-muted); font-size: 13px; }
     .stage-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 8px; color: var(--text-muted); font-size: 11px; }
     .stage-legend span { display: inline-flex; align-items: center; gap: 6px; }
     .stage-dot { width: 11px; height: 11px; border: 1px solid rgb(60 70 90 / 30%); border-radius: 50%; }
@@ -132,7 +143,7 @@ import {
     .stage-dot.unknown { background: #c9ced6; }
     .stage-note { margin: 0 0 10px; color: var(--text-muted); font-size: 11px; line-height: 1.55; }
     .stage-note a { color: var(--primary); }
-    .tree-scroll { overflow: auto; padding: 12px 12px 26px; }
+    .tree-scroll { flex: 1; min-height: 180px; overflow: auto; padding: 12px 12px 26px; }
     .tree-canvas { display: flex; justify-content: center; min-width: max-content; padding: 4px 12px 14px; perspective: 1100px; }
     .tree-level { position: relative; display: flex; align-items: flex-start; justify-content: center; gap: 20px; }
     .tree-branch { position: relative; display: flex; flex-direction: column; align-items: center; padding: 0 10px; }
@@ -155,14 +166,14 @@ import {
     .node-heading strong, .node-heading small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .node-heading strong { font-size: 13px; }
     .node-heading small { color: var(--text-muted); font-size: 11px; }
-    .node-tooltip { position: absolute; z-index: 10; top: 50%; left: calc(100% + 12px); display: flex; visibility: hidden; width: 245px; flex-direction: column; gap: 5px; padding: 13px 15px; border: 1px solid var(--glass-border); border-radius: 14px; background: var(--surface); box-shadow: 0 16px 36px rgb(10 18 40 / 30%); color: var(--text); font-size: 12px; opacity: 0; pointer-events: none; transform: translate(6px, -50%); transition: opacity 140ms ease, transform 140ms ease, visibility 140ms; }
-    .tree-branch.tree-last > .animal-node .node-tooltip { right: calc(100% + 12px); left: auto; transform: translate(-6px, -50%); }
+    .node-tooltip { position: absolute; z-index: 10; top: 0; left: calc(100% + 12px); display: flex; visibility: hidden; width: 245px; flex-direction: column; gap: 5px; padding: 13px 15px; border: 1px solid var(--glass-border); border-radius: 14px; background: var(--surface); box-shadow: 0 16px 36px rgb(10 18 40 / 30%); color: var(--text); font-size: 12px; opacity: 0; pointer-events: none; transform: translate(6px, 0); transition: opacity 140ms ease, transform 140ms ease, visibility 140ms; }
+    .tree-branch.tree-last > .animal-node .node-tooltip { right: calc(100% + 12px); left: auto; transform: translate(-6px, 0); }
     .node-tooltip strong { margin-bottom: 3px; color: var(--primary); font-size: 13px; }
-    .animal-node:hover .node-tooltip, .animal-node:focus-visible .node-tooltip { visibility: visible; opacity: 1; transform: translate(0, -50%); }
-    .tree-branch.tree-last > .animal-node:hover .node-tooltip, .tree-branch.tree-last > .animal-node:focus-visible .node-tooltip { transform: translate(0, -50%); }
+    .animal-node:hover .node-tooltip, .animal-node:focus-visible .node-tooltip { visibility: visible; opacity: 1; transform: translate(0, 0); }
+    .tree-branch.tree-last > .animal-node:hover .node-tooltip, .tree-branch.tree-last > .animal-node:focus-visible .node-tooltip { transform: translate(0, 0); }
     .tree-empty { margin: 18px 0 2px; color: var(--text-muted); text-align: center; }
     @media (prefers-reduced-motion: reduce) { .animal-node, .node-tooltip { transition: none; } }
-    @media (max-width: 600px) { .herd-tree { padding: 16px; } .tree-header { flex-direction: column; } }
+    @media (max-width: 600px) { .herd-tree { padding: 12px; } .tree-dialog-title strong { font-size: 17px; } .tree-dialog-content { height: calc(92vh - 84px); max-height: calc(92vh - 84px); } }
   `,
 })
 export class LivestockPage {
@@ -170,6 +181,7 @@ export class LivestockPage {
   private readonly dialog = inject(MatDialog);
   protected readonly fmt = formatInr;
   protected readonly familyTree = computed(() => buildLivestockTree(this.repo.items()));
+  private readonly herdTreeDialog = viewChild.required<TemplateRef<unknown>>('herdTreeDialog');
 
   protected readonly fields = computed<FieldConfig[]>(() => [
     { key: 'farmName', label: 'Farm name', type: 'text', section: 'Herd', placeholder: 'e.g. Hebbevu Farms' },
@@ -258,8 +270,18 @@ export class LivestockPage {
     });
   }
 
-  protected metrics(animal: Livestock) {
-    return livestockMetrics(animal);
+  protected openHerdTree(): void {
+    this.dialog.open(this.herdTreeDialog(), {
+      width: '96vw',
+      maxWidth: '1600px',
+      height: '92vh',
+      maxHeight: '94vh',
+      autoFocus: false,
+    });
+  }
+
+  protected milkIncomeReceived(animal: Livestock): number {
+    return sum(animal.milkIncomeTransactions ?? [], (entry) => entry.amount);
   }
 
   protected ageLabel(animal: Livestock): string {
@@ -275,8 +297,7 @@ export class LivestockPage {
   }
 
   protected nodeLabel(animal: Livestock): string {
-    const metrics = livestockMetrics(animal);
-    return `${animal.tagNumber ? `Tag ${animal.tagNumber}, ` : ''}${animal.breed} ${animal.animalType}, ${animal.lifeStatus || 'Alive'}, ${this.lifeStage(animal).label}, age ${this.ageLabel(animal)}, recorded linked offspring ${this.offspringCount(animal)}, current value ${formatInr(animal.currentValue)}, estimated monthly profit ${formatInr(metrics.monthlyProfit)}`;
+    return `${animal.tagNumber ? `Tag ${animal.tagNumber}, ` : ''}${animal.breed} ${animal.animalType}, ${animal.lifeStatus || 'Alive'}, ${this.lifeStage(animal).label}, age ${this.ageLabel(animal)}, recorded linked offspring ${this.offspringCount(animal)}, current value ${formatInr(animal.currentValue)}, milk income received so far ${formatInr(this.milkIncomeReceived(animal))}`;
   }
 
   protected readonly kpi = computed(() => {

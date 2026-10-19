@@ -6,11 +6,15 @@ import {
 } from './repositories/repositories';
 import { daysUntil, fdMetrics, lendingMetrics } from '../utilities/finance';
 import { formatDate, formatInr } from '../utilities/format';
-import { CashflowEvent, cashflowEvents } from '../utilities/repayment-calendar';
+import {
+  CashflowEvent, cashflowEvents, insuranceEffectiveMaturityDate,
+} from '../utilities/repayment-calendar';
 import { PortfolioService } from './portfolio.service';
 import { ToastService } from './toast.service';
 
 const DISMISSED_KEY = 'asset-manager.dismissed-alerts';
+const ADVANCE_REMINDER_DAYS = 7;
+const OVERDUE_RETENTION_DAYS = 30;
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
@@ -26,7 +30,7 @@ export class NotificationService {
     const out: AppNotification[] = [];
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const reminderEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+    const reminderEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + ADVANCE_REMINDER_DAYS);
     const startDates = [
       ...d.lending.filter((loan) => loan.status !== 'Closed').map((loan) => loan.startDate),
       ...d.liabilities.filter((liability) => liability.status !== 'Planned' && liability.outstanding > 0)
@@ -39,12 +43,26 @@ export class NotificationService {
     const overdueEvents = new Map<string, { event: CashflowEvent; days: number }[]>();
     const events = cashflowEvents(d.lending, d.liabilities, historyStart, reminderEnd, today, d.insurance);
     for (const event of events) {
-      if (!event.lending && !event.liability) continue;
       const [year, month, day] = event.date.split('-').map(Number);
       const eventDay = Date.UTC(year, month - 1, day);
       const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
       const days = Math.round((eventDay - todayUtc) / 86_400_000);
-      if (days > 7 || event.schedule.status === 'Paid') continue;
+      if (days > ADVANCE_REMINDER_DAYS || event.schedule.status === 'Paid') continue;
+      if (event.insurance) {
+        if (!event.maturityPayout && days >= 0) {
+          out.push({
+            id: `insurance-premium-${event.id}`,
+            severity: days <= 2 ? 'warning' : 'info',
+            icon: 'receipt_long',
+            title: `Insurance premium · due ${days === 0 ? 'today' : `in ${days} ${days === 1 ? 'day' : 'days'}`}`,
+            message: `${event.insurance.policyName} · ${formatInr(event.amount)} · ${formatDate(event.date)}`,
+            date: event.date,
+            route: '/insurance',
+          });
+        }
+        continue;
+      }
+      if (!event.lending && !event.liability) continue;
       if (days < 0) {
         const key = event.lending ? `lending:${event.lending.id}` : `liability:${event.liability!.id}`;
         overdueEvents.set(key, [...(overdueEvents.get(key) ?? []), { event, days }]);
@@ -59,9 +77,25 @@ export class NotificationService {
       out.push(this.paymentNotification(oldest.event, oldest.days, pending.length, key));
     }
 
+    for (const policy of d.insurance) {
+      if (policy.category === 'Health') continue;
+      const maturityDate = insuranceEffectiveMaturityDate(policy);
+      const days = daysUntil(maturityDate, today);
+      if (!maturityDate || days === null || days < 0 || days > ADVANCE_REMINDER_DAYS) continue;
+      out.push({
+        id: `insurance-maturity-${policy.id}-${maturityDate}`,
+        severity: days <= 2 ? 'warning' : 'info',
+        icon: 'shield',
+        title: days === 0 ? `${policy.policyName} matures today` : `${policy.policyName} matures in ${days} days`,
+        message: `${policy.provider} · ${formatDate(maturityDate)}`,
+        date: maturityDate,
+        route: '/insurance',
+      });
+    }
+
     for (const fd of d.fixedDeposits) {
       const days = fdMetrics(fd).daysToMaturity;
-      if (days === null || days < -30 || days > 30) continue;
+      if (days === null || days < -OVERDUE_RETENTION_DAYS || days > ADVANCE_REMINDER_DAYS) continue;
       out.push({
         id: `fd-${fd.id}-${fd.maturityDate}`,
         severity: days < 0 ? 'warning' : 'info',
@@ -76,7 +110,7 @@ export class NotificationService {
     for (const loan of d.lending) {
       if (loan.status === 'Closed' || !loan.endDate) continue;
       const m = lendingMetrics(loan);
-      if (m.daysToEnd === null || m.daysToEnd > 30 || m.outstanding <= 0) continue;
+      if (m.daysToEnd === null || m.daysToEnd > ADVANCE_REMINDER_DAYS || m.outstanding <= 0) continue;
       out.push({
         id: `lend-${loan.id}-${loan.endDate}`,
         severity: m.daysToEnd < 0 ? 'critical' : 'warning',
@@ -90,7 +124,7 @@ export class NotificationService {
 
     for (const l of d.livestock) {
       const days = daysUntil(l.nextVaccination);
-      if (days === null || days > 14) continue;
+      if (days === null || days > ADVANCE_REMINDER_DAYS) continue;
       out.push({
         id: `vac-${l.id}-${l.nextVaccination}`,
         severity: days < 0 ? 'warning' : 'info',
@@ -104,7 +138,7 @@ export class NotificationService {
 
     for (const v of d.vehicles) {
       const days = daysUntil(v.insuranceRenewal);
-      if (days === null || days > 30) continue;
+      if (days === null || days > ADVANCE_REMINDER_DAYS) continue;
       out.push({
         id: `veh-${v.id}-${v.insuranceRenewal}`,
         severity: days < 0 ? 'critical' : 'warning',
