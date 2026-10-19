@@ -8,6 +8,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { AuthService } from '../../core/auth/auth.service';
 import { FirestoreDataStore } from '../../core/data/firestore-data-store';
 import { ThemeService } from '../../core/theme/theme.service';
+import { AdminWorkspaceService } from '../../services/admin-workspace.service';
 import { PortfolioBackupService } from '../../services/portfolio-backup.service';
 import { ProfileService } from '../../services/profile.service';
 import { ToastService } from '../../services/toast.service';
@@ -123,6 +124,7 @@ import { PageHeader } from '../../shared/components/page-header';
 })
 export class SettingsPage {
   protected readonly auth = inject(AuthService);
+  private readonly workspace = inject(AdminWorkspaceService);
   protected readonly theme = inject(ThemeService);
   private readonly profile = inject(ProfileService);
   private readonly backup = inject(PortfolioBackupService);
@@ -169,7 +171,7 @@ export class SettingsPage {
   }
 
   protected async checkConnection(): Promise<void> {
-    const user = this.auth.user();
+    const user = this.workspace.activeUser();
     if (!user) return;
 
     this.checkingConnection.set(true);

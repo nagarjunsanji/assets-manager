@@ -45,6 +45,10 @@ export class AccessApprovalService {
     this._requests().filter((request) => request.approved !== true)
       .sort((a, b) => a.requestedAt - b.requestedAt),
   );
+  readonly approvedUsers = computed(() =>
+    this._requests().filter((request) => request.approved === true)
+      .sort((a, b) => (a.displayName || a.email).localeCompare(b.displayName || b.email)),
+  );
   readonly error = this._error.asReadonly();
   readonly approvingUid = signal<string | null>(null);
 

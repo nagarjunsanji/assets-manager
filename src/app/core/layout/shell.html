@@ -86,6 +86,38 @@
 
       <span class="spacer"></span>
 
+      @if (auth.isSuperAdmin()) {
+        <button mat-button class="workspace-switcher" [matMenuTriggerFor]="workspaceMenu">
+          <mat-icon>admin_panel_settings</mat-icon>
+          <span>{{ workspace.selectedUser()?.displayName || 'My data' }}</span>
+          <mat-icon>arrow_drop_down</mat-icon>
+        </button>
+        <mat-menu #workspaceMenu="matMenu">
+          <div class="workspace-menu-heading" (click)="$event.stopPropagation()">
+            <strong>Admin data access</strong>
+            <small>Your Google sign-in remains unchanged.</small>
+          </div>
+          <button mat-menu-item (click)="selectWorkspace(null)" [disabled]="!workspace.selectedUser()">
+            <mat-icon>person</mat-icon>
+            My account
+          </button>
+          @for (account of accessApprovals.approvedUsers(); track account.id) {
+            @if (account.id !== user()?.uid) {
+              <button mat-menu-item (click)="selectWorkspace(account.id)">
+                <mat-icon>account_circle</mat-icon>
+                <span>{{ account.displayName || account.email }}<small class="workspace-email">{{ account.email }}</small></span>
+              </button>
+            }
+          }
+          @if (!accessApprovals.approvedUsers().length && !accessApprovals.error()) {
+            <div class="workspace-menu-note">No other approved accounts are available.</div>
+          }
+          @if (accessApprovals.error()) {
+            <div class="workspace-menu-note error">{{ accessApprovals.error() }}</div>
+          }
+        </mat-menu>
+      }
+
       <button mat-icon-button (click)="theme.toggle()" [attr.aria-label]="'Switch to ' + (theme.mode() === 'dark' ? 'light' : 'dark') + ' theme'" matTooltip="Toggle theme">
         <mat-icon>{{ theme.mode() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
       </button>
@@ -169,6 +201,13 @@
     </header>
 
     <main class="main">
+      @if (workspace.selectedUser(); as target) {
+        <div class="workspace-banner" role="status">
+          <mat-icon>admin_panel_settings</mat-icon>
+          <span><strong>Admin support mode</strong> · Viewing and editing {{ target.displayName }} ({{ target.email }}). Signed in as {{ user()?.email }}.</span>
+          <button mat-button (click)="selectWorkspace(null)">Return to my data</button>
+        </div>
+      }
       <router-outlet />
     </main>
   </mat-sidenav-content>

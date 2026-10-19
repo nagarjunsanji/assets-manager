@@ -5,13 +5,15 @@ import { AuthService } from '../../core/auth/auth.service';
 import { CollectionName, Entity, NewEntity } from '../../models/entity.model';
 import { AppUser } from '../../models/user.model';
 import { ToastService } from '../toast.service';
+import { AdminWorkspaceService } from '../admin-workspace.service';
 
 /**
  * Generic signal-based repository over users/{uid}/{collection}.
- * Reads and writes the signed-in user's Firestore collection.
+ * Reads and writes the active user's Firestore collection.
  */
 export abstract class BaseRepository<T extends Entity> {
   protected readonly auth = inject(AuthService);
+  private readonly workspace = inject(AdminWorkspaceService);
   private readonly toast = inject(ToastService);
   private readonly _loaded = signal(false);
   readonly loaded = this._loaded.asReadonly();
@@ -20,7 +22,7 @@ export abstract class BaseRepository<T extends Entity> {
 
   protected constructor(readonly collectionName: CollectionName) {
     this.items = toSignal(
-      toObservable(this.auth.user).pipe(
+      toObservable(this.workspace.activeUser).pipe(
         tap(() => this._loaded.set(false)),
         switchMap((user) => {
           if (!user) return of([] as T[]);
@@ -90,7 +92,7 @@ export abstract class BaseRepository<T extends Entity> {
   }
 
   private requireUser(): AppUser {
-    const user = this.auth.user();
+    const user = this.workspace.activeUser();
     if (!user) throw new Error('You must be signed in.');
     return user;
   }

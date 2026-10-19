@@ -13,7 +13,7 @@ A self-hosted, frontend-only **family office dashboard** for tracking a househol
 | State | Angular Signals + RxJS interop (`toSignal`/`toObservable`) |
 | Data | Cloud Firestore (with offline persistence), per-user subcollections |
 | Files | Small PDFs and images stored as Firestore documents |
-| Auth | Firebase Authentication (Google sign-in, allowlisted account only) |
+| Auth | Firebase Authentication (Google sign-in, approved accounts and verified super-admin support access) |
 | Hosting | Firebase Hosting + Angular service worker (PWA) |
 
 ---
@@ -139,6 +139,8 @@ npm start          # http://localhost:4200
 In GitHub Codespaces, open the **Ports** tab, make sure port `4200` is forwarded, and open the URL shown there. The forwarded URL is specific to the active Codespace; an old forwarded URL may return 404.
 
 Sign in with the Google account `nagarjun.sanji@gmail.com`. Other verified Google accounts can sign in to request access, but remain blocked from app data until approved. As super admin, review pending requests from the **Access approvals** panel on your dashboard and choose **Approve**. Until approval, the applicant sees an approval-pending message. The panel updates live from Firestore; no direct database edits or Cloud Functions are required. This manual flow does not send an email notification. In Settings, choose **Test Firestore connection** to verify the signed-in account can reach the live database, or **Export JSON backup** to download a local backup. Production UI does not include sample-data loading or bulk record deletion.
+
+The verified super-admin can select an approved account from the top-bar **Admin data access** menu to view and edit that account's data. This is an admin data workspace, not a Firebase sign-in as the selected user: actions remain authenticated as the super-admin. A visible banner identifies the selected account, and **Return to my data** exits the workspace. The account selector is UI-gated and Firestore rules separately restrict cross-account data access to the verified super-admin and approved accounts. Deploy the updated rules with `npm run deploy:rules` before using this feature.
 
 The document vault stores files directly in Firestore, so uploads are limited to 700 KB. Larger files must be kept outside the app and can be linked separately.
 

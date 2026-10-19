@@ -15,6 +15,8 @@ import { AuthService } from '../auth/auth.service';
 import { ThemeService } from '../theme/theme.service';
 import { NotificationService } from '../../services/notification.service';
 import { PortfolioService } from '../../services/portfolio.service';
+import { AccessApprovalService } from '../../services/access-approval.service';
+import { AdminWorkspaceService } from '../../services/admin-workspace.service';
 import { SearchResult, SearchService } from '../../services/search.service';
 import { CountUp } from '../../shared/components/count-up';
 import { NAVIGATION } from './navigation';
@@ -36,6 +38,8 @@ export class Shell {
   protected readonly theme = inject(ThemeService);
   protected readonly notifications = inject(NotificationService);
   protected readonly portfolio = inject(PortfolioService);
+  protected readonly accessApprovals = inject(AccessApprovalService);
+  protected readonly workspace = inject(AdminWorkspaceService);
   private readonly searchService = inject(SearchService);
   private readonly router = inject(Router);
 
@@ -80,6 +84,10 @@ export class Shell {
   }
 
   protected displayNothing = () => '';
+
+  protected selectWorkspace(uid: string | null): void {
+    this.workspace.selectUser(uid);
+  }
 
   protected async signOut(): Promise<void> {
     await this.auth.signOut();

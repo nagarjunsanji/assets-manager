@@ -3,14 +3,16 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, of, switchMap } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
 import { DEFAULT_PROFILE, UserProfile } from '../models/user.model';
+import { AdminWorkspaceService } from './admin-workspace.service';
 
 /** Profile document stored at users/{uid}. */
 @Injectable({ providedIn: 'root' })
 export class ProfileService {
   private readonly auth = inject(AuthService);
+  private readonly workspace = inject(AdminWorkspaceService);
 
   private readonly raw = toSignal(
-    toObservable(this.auth.user).pipe(
+    toObservable(this.workspace.activeUser).pipe(
       switchMap((user) =>
         user
           ? this.auth.store(user).watchDoc<Partial<UserProfile>>(this.auth.userPath(user)).pipe(catchError(() => of(null)))
@@ -21,7 +23,7 @@ export class ProfileService {
   );
 
   readonly profile = computed<UserProfile>(() => {
-    const user = this.auth.user();
+    const user = this.workspace.activeUser();
     return {
       ...DEFAULT_PROFILE,
       displayName: user?.displayName ?? '',
@@ -31,7 +33,7 @@ export class ProfileService {
   });
 
   async save(patch: Partial<UserProfile>): Promise<void> {
-    const user = this.auth.user();
+    const user = this.workspace.activeUser();
     if (!user) throw new Error('You must be signed in.');
     const { ...data } = patch as Record<string, unknown>;
     delete data['id'];

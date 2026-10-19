@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Every record lives under users/{uid}/... so each user can only ever touch their own data.
+// Users can access their own records; the verified super admin can support approved accounts.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -27,6 +27,13 @@ service cloud.firestore {
 
     function isOwner(uid) {
       return isApprovedUser(uid) && request.auth.uid == uid;
+    }
+
+    function canAccessUserData(uid) {
+      return isOwner(uid)
+        || (isAdmin()
+          && exists(/databases/$(database)/documents/accessRequests/$(uid))
+          && get(/databases/$(database)/documents/accessRequests/$(uid)).data.approved == true);
     }
 
     function allowedCollection(name) {
@@ -60,12 +67,12 @@ service cloud.firestore {
 
     // User profile document (users collection)
     match /users/{uid} {
-      allow read, delete: if isOwner(uid);
-      allow create, update: if isOwner(uid) && request.resource.data.size() <= 40;
+      allow read, delete: if canAccessUserData(uid);
+      allow create, update: if canAccessUserData(uid) && request.resource.data.size() <= 40;
 
       match /{collection}/{docId} {
-        allow read, delete: if isOwner(uid) && allowedCollection(collection);
-        allow create, update: if isOwner(uid) && allowedCollection(collection) && validPayload(collection);
+        allow read, delete: if canAccessUserData(uid) && allowedCollection(collection);
+        allow create, update: if canAccessUserData(uid) && allowedCollection(collection) && validPayload(collection);
       }
     }
 
